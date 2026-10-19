@@ -435,3 +435,99 @@ summary { cursor: pointer; font-weight: 600; }
   .project-name input { display: none; }
   .sim-controls .speed { width: 100%; }
 }
+
+/* =====================================================================
+   Fluidez e materiais — princípios de interface da Apple (WWDC: "Designing
+   Fluid Interfaces", "The Details of UI Typography"), traduzidos para a web.
+   ===================================================================== */
+:root {
+  /* Curva que aproxima uma mola criticamente amortecida (sem ultrapassar o alvo). */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --press: 100ms;
+  --glass: rgba(255, 255, 255, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.55);
+  --scrim: rgba(18, 20, 26, 0.32);
+}
+:root[data-theme='dark'] {
+  --glass: rgba(30, 33, 41, 0.72);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --scrim: rgba(0, 0, 0, 0.45);
+}
+
+/* Texto: segue o tamanho de fonte escolhido pelo usuário (rem) e o tamanho óptico do sistema. */
+body { font-size: 0.875rem; font-optical-sizing: auto; transition: background-color 250ms ease, color 250ms ease; }
+.panel, .topbar, .canvas-wrap { transition: background-color 250ms ease; }
+/* Tracking por tamanho: títulos maiores mais justos; rótulos pequenos em caixa alta, um pouco abertos. */
+.modal h2 { letter-spacing: -0.015em; line-height: 1.2; }
+.brand span, .reg-main h3, .edge-title { letter-spacing: -0.01em; }
+.card h3 { letter-spacing: 0.06em; }
+.state-name { letter-spacing: -0.01em; }
+
+/* Resposta imediata: o retorno acontece ao pressionar, não ao soltar. */
+.btn, .tool, .example, .link-row, .segmented button, .reg-nav button, .chip-label, .menu button, .history li button, .tabs button {
+  transition: transform var(--press) ease-out, background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* sem atraso de toque duplo */
+}
+.btn:active:not(:disabled), .tool:active, .segmented button:active, .reg-nav button:active:not(:disabled), .menu button:active, .history li button:active { transform: scale(0.97); }
+.example:active, .link-row:active { transform: scale(0.985); }
+
+/* Estados do diagrama: mudanças de destaque suaves; ao ser arrastado, o estado "sobe". */
+.state-circle, .state-inner { transition: fill 180ms ease, stroke 180ms ease, stroke-width 120ms ease, filter 150ms ease; }
+.state.lifted .state-circle { filter: drop-shadow(0 6px 10px rgba(15, 20, 40, 0.22)); stroke-width: 2.4; }
+.edge-line { transition: stroke 180ms ease, stroke-width 120ms ease; }
+
+/* Materiais: controles que flutuam sobre o diagrama são uma camada translúcida. */
+.panel-toggles, .canvas-hint, .menu, .helptip-pop {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+  backdrop-filter: blur(18px) saturate(170%);
+  border-color: var(--glass-edge);
+}
+.canvas-hint { font-weight: 500; color: var(--ink); }
+
+/* Origem ancorada: menus e dicas crescem a partir do que os abriu. */
+.menu { transform-origin: top right; animation: pop-in 180ms var(--ease-spring); }
+.helptip-pop { transform-origin: top center; animation: pop-in 160ms var(--ease-spring); }
+@keyframes pop-in { from { opacity: 0; transform: scale(0.94); } }
+
+/* Diálogo modal: escurece para focar; o painel "materializa" (escala + desfoque) e sai pelo mesmo caminho. */
+.modal-backdrop { background: var(--scrim); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); animation: scrim-in 200ms ease; }
+.modal { animation: materialize 240ms var(--ease-spring); }
+.modal-backdrop.closing { animation: scrim-out 160ms ease forwards; }
+.modal-backdrop.closing .modal { animation: dematerialize 160ms ease-in forwards; }
+@keyframes scrim-in { from { opacity: 0; } }
+@keyframes scrim-out { to { opacity: 0; } }
+@keyframes materialize { from { opacity: 0; transform: scale(0.96); filter: blur(6px); } }
+@keyframes dematerialize { to { opacity: 0; transform: scale(0.96); filter: blur(6px); } }
+
+/* Aviso: sobe de baixo e desce pelo mesmo caminho. */
+.toast { animation: toast-in 260ms var(--ease-spring); }
+.toast.leaving { animation: toast-out 160ms ease-in forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px); } }
+@keyframes toast-out { to { opacity: 0; transform: translate(-50%, 16px); } }
+
+/* Painel inferior: o veredito aparece com um leve assentamento, não de repente. */
+.final, .verdict { animation: settle 220ms var(--ease-spring); }
+@keyframes settle { from { opacity: 0; transform: translateY(4px); } }
+
+/* ---------- acessibilidade: movimento, transparência e contraste ---------- */
+@media (prefers-reduced-motion: reduce) {
+  /* Sem deslocamentos nem escalas: só transições curtas de opacidade, que ajudam a entender. */
+  .menu, .helptip-pop, .modal, .toast, .final, .verdict { animation: fade-only 150ms ease !important; }
+  .modal-backdrop.closing, .modal-backdrop.closing .modal, .toast.leaving { animation: fade-out-only 120ms ease forwards !important; }
+  .btn:active:not(:disabled), .tool:active, .segmented button:active, .reg-nav button:active:not(:disabled), .menu button:active, .history li button:active, .example:active, .link-row:active { transform: none; }
+  .toast, .toast.leaving { transform: translateX(-50%); }
+  body, .panel, .topbar, .canvas-wrap { transition: none; }
+}
+@keyframes fade-only { from { opacity: 0; } }
+@keyframes fade-out-only { to { opacity: 0; } }
+@media (prefers-reduced-transparency: reduce) {
+  .panel-toggles, .canvas-hint, .menu, .helptip-pop { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--line); }
+  .modal-backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(10, 12, 18, 0.55); }
+}
+@media (prefers-contrast: more) {
+  :root { --line: #6a7282; --line-2: #9aa1ad; --muted: #4a5263; }
+  :root[data-theme='dark'] { --line: #8a93a3; --line-2: #5d6573; --muted: #c0c6d2; }
+  .panel-toggles, .canvas-hint, .menu, .helptip-pop { background: var(--surface); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--ink-2); }
+}

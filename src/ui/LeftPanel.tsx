@@ -3,10 +3,10 @@ import { KIND_LABEL, type Machine } from '../core/machine';
 import { PDA_EXAMPLES } from '../core/pda/examples';
 import type { BatchCase } from '../core/fa/batch';
 import { autoLayout } from '../core/fa/layout';
-import { moveStates } from '../core/fa/edit';
 import { newProject } from '../core/persistence/schema';
 import { useApp, type Tool } from '../state/store';
 import { Icon } from './icons';
+import { animateStatesTo, zoomAround } from './camera';
 
 const TOOLS: { id: Tool; label: string; key: string; icon: string; hint: string }[] = [
   { id: 'select', label: 'Selecionar', key: 'V', icon: 'cursor', hint: 'Clique para selecionar, arraste estados para mover, arraste o fundo para deslocar a vista. Shift+clique seleciona vários.' },
@@ -21,10 +21,7 @@ export function LeftPanel() {
 
   const zoom = (f: number) => {
     const el = document.querySelector('.canvas') as SVGSVGElement | null;
-    const W = el?.clientWidth ?? 800;
-    const H = el?.clientHeight ?? 600;
-    const k = Math.max(0.2, Math.min(3, view.k * f));
-    st.setView({ k, x: W / 2 - ((W / 2 - view.x) * k) / view.k, y: H / 2 - ((H / 2 - view.y) * k) / view.k });
+    zoomAround(f, (el?.clientWidth ?? 800) / 2, (el?.clientHeight ?? 600) / 2);
   };
 
   return (
@@ -60,8 +57,9 @@ export function LeftPanel() {
               className="btn small"
               title="Organizar automaticamente (pode ser desfeito)"
               onClick={() => {
-                st.apply((m) => moveStates(m, autoLayout(m)));
-                st.requestFit();
+                // Os estados viajam até o novo lugar (uma única entrada no desfazer); depois a câmera enquadra.
+                animateStatesTo(autoLayout(st.project.machine), 0.45);
+                setTimeout(() => st.requestFit(), 180);
               }}
             >
               <Icon name="layout" /> Organizar

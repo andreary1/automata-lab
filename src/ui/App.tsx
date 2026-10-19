@@ -6,6 +6,7 @@ import { BottomPanel } from './BottomPanel';
 import { Canvas } from './Canvas';
 import { ConfirmDialog, HelpDialog, ImportDialog, ProjectsDialog } from './Dialogs';
 import { Icon } from './icons';
+import { stopStateMotion } from './camera';
 import { LeftPanel } from './LeftPanel';
 import { RegularDialog } from './RegularDialog';
 import { RightPanel } from './RightPanel';
@@ -31,9 +32,19 @@ export function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // Aviso: entra de baixo e sai pelo mesmo caminho antes de desmontar.
+  const [toastLeaving, setToastLeaving] = useState(false);
+  const dismissToast = () => {
+    setToastLeaving(true);
+    setTimeout(() => {
+      useApp.setState({ toast: null });
+      setToastLeaving(false);
+    }, 160);
+  };
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(() => useApp.setState({ toast: null }), toast.kind === 'error' ? 7000 : 3500);
+    setToastLeaving(false);
+    const t = setTimeout(dismissToast, toast.kind === 'error' ? 7000 : 3500);
     return () => clearTimeout(t);
   }, [toast]);
 
@@ -59,6 +70,7 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return;
+      stopStateMotion();
       const st = useApp.getState();
       if (st.dialog || st.confirmReq) return;
       const mod = e.ctrlKey || e.metaKey;
@@ -171,9 +183,9 @@ export function App() {
       {importing && <ImportDialog pending={importing.projects} warnings={importing.warnings} onClose={() => setImporting(null)} />}
       <ConfirmDialog />
       {toast && (
-        <div className={`toast ${toast.kind}`} role={toast.kind === 'error' ? 'alert' : 'status'}>
+        <div className={`toast ${toast.kind}${toastLeaving ? ' leaving' : ''}`} role={toast.kind === 'error' ? 'alert' : 'status'}>
           {toast.text}
-          <button className="btn ghost icon-only" onClick={() => useApp.setState({ toast: null })} aria-label="Fechar aviso">
+          <button className="btn ghost icon-only" onClick={dismissToast} aria-label="Fechar aviso">
             <Icon name="x" />
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { emptyAutomaton } from '../core/fa/model';
 import { inputAlphabet, KIND_LABEL } from '../core/machine';
 import { emptyPDA } from '../core/pda/model';
@@ -9,22 +9,29 @@ import { Icon } from './icons';
 
 export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [closing, setClosing] = useState(false);
+  // Sai pelo mesmo caminho por onde entrou (escala + desfoque), depois desmonta.
+  const close = useCallback(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return onClose();
+    setClosing(true);
+    setTimeout(onClose, 160);
+  }, [onClose]);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     ref.current?.querySelector<HTMLElement>('button, input, textarea, select')?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close();
     document.addEventListener('keydown', onKey);
     return () => {
       document.removeEventListener('keydown', onKey);
       prev?.focus?.();
     };
-  }, [onClose]);
+  }, [close]);
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div className={`modal-backdrop${closing ? ' closing' : ''}`} onMouseDown={(e) => e.target === e.currentTarget && close()}>
       <div className={`modal${wide ? ' wide' : ''}`} role="dialog" aria-modal="true" aria-label={title} ref={ref}>
         <header>
           <h2>{title}</h2>
-          <button className="btn ghost icon-only" onClick={onClose} aria-label="Fechar">
+          <button className="btn ghost icon-only" onClick={close} aria-label="Fechar">
             <Icon name="x" />
           </button>
         </header>

@@ -5,10 +5,11 @@ import { ensurePDAEdge, suggestTransition } from '../core/pda/edit';
 import type { SimState } from '../state/store';
 import { useApp } from '../state/store';
 import { diagramBounds, edgeGeometry, firstLineY, R } from './geometry';
+import { animateStatesTo, animateView, flingView, stopCamera, stopStateMotion, VelocityTracker } from './camera';
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; vx: number; vy: number }
-  | { kind: 'move'; sx: number; sy: number; origins: Map<string, { x: number; y: number }>; moved: boolean }
+  | { kind: 'move'; sx: number; sy: number; origins: Map<string, { x: number; y: number }>; moved: boolean; alt?: boolean }
   | { kind: 'edge'; from: string; sx: number; sy: number; moved: boolean };
 
 const snap = (v: number) => Math.round(v / 10) * 10;
@@ -45,6 +46,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
   const fitTick = useApp((s) => s.fitTick);
   const wrapRef = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
+  const velocityRef = useRef(new VelocityTracker());
+  const [dragging, setDragging] = useState(false);
   const [temp, setTemp] = useState<{ from: string; x: number; y: number } | null>(null);
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
 
@@ -75,6 +78,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
   };
 
   // Ajustar à tela
+  const firstFit = useRef(true);
   const fit = useCallback(() => {
     const el = wrapRef.current;
     if (!el) return;
@@ -83,7 +87,12 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
     const H = el.clientHeight;
     if (W === 0 || H === 0) return;
     const k = Math.max(0.3, Math.min(1.6, Math.min(W / b.w, H / b.h)));
-    useApp.getState().setView({ k, x: (W - b.w * k) / 2 - b.x * k, y: (H - b.h * k) / 2 - b.y * k });
+    const target = { k, x: (W - b.w * k) / 2 - b.x * k, y: (H - b.h * k) / 2 - b.y * k };
+    // Na primeira exibição, posiciona direto; depois, a câmera desliza do ponto atual.
+    if (firstFit.current) {
+      firstFit.current = false;
+      useApp.getState().setView(target);
+    } else animateView(target);
   }, []);
   useEffect(() => {
     const id = requestAnimationFrame(fit);
@@ -96,6 +105,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
     if (!svg) return;
     const onWheel = (ev: WheelEvent) => {
       ev.preventDefault();
+      stopCamera(); // o gesto do usuário sempre tem prioridade sobre animações
       const v = useApp.getState().view;
       const rect = svg.getBoundingClientRect();
       const px = ev.clientX - rect.left;
@@ -110,13 +120,18 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
 
   const onBgDown = (ev: React.PointerEvent) => {
     if (ev.button === 2) return;
+    stopCamera(); // agarrar a vista no meio de uma animação: continua do ponto atual
+    stopStateMotion();
     const st = useApp.getState();
     const w = toWorld(ev.clientX, ev.clientY);
     svgRef.current?.setPointerCapture(ev.pointerId);
     if (ev.button === 1 || tool === 'select' || tool === 'edge') {
       if (tool === 'edge' && st.pendingEdgeFrom) st.setPendingEdgeFrom(null);
       if (!ev.shiftKey && ev.button !== 1) st.clearSelection();
-      drag.current = { kind: 'pan', sx: ev.clientX, sy: ev.clientY, vx: view.x, vy: view.y };
+      const v = useApp.getState().view; // valor de apresentação (atual), não o de render
+      velocityRef.current = new VelocityTracker();
+      velocityRef.current.add(ev.clientX, ev.clientY);
+      drag.current = { kind: 'pan', sx: ev.clientX, sy: ev.clientY, vx: v.x, vy: v.y };
       return;
     }
     if (tool === 'state') {
@@ -133,6 +148,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
   const onStateDown = (ev: React.PointerEvent, id: string) => {
     if (ev.button !== 0) return;
     ev.stopPropagation();
+    stopCamera();
+    stopStateMotion();
     const st = useApp.getState();
     svgRef.current?.setPointerCapture(ev.pointerId);
     if (tool === 'edge') {
@@ -173,15 +190,19 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
     if (!d) return;
     const st = useApp.getState();
     if (d.kind === 'pan') {
+      velocityRef.current.add(ev.clientX, ev.clientY);
       st.setView({ ...st.view, x: d.vx + ev.clientX - d.sx, y: d.vy + ev.clientY - d.sy });
     } else if (d.kind === 'move') {
       const k = st.view.k;
       const dx = (ev.clientX - d.sx) / k;
       const dy = (ev.clientY - d.sy) / k;
       if (!d.moved && Math.hypot(dx, dy) < 3) return;
+      if (!d.moved) setDragging(true);
       d.moved = true;
       const moves = new Map<string, { x: number; y: number }>();
-      for (const [id, o] of d.origins) moves.set(id, { x: ev.altKey ? o.x + dx : snap(o.x + dx), y: ev.altKey ? o.y + dy : snap(o.y + dy) });
+      // 1:1 com o ponteiro durante o arraste; o alinhamento à grade acontece só ao soltar.
+      for (const [id, o] of d.origins) moves.set(id, { x: o.x + dx, y: o.y + dy });
+      d.alt = ev.altKey;
       st.applyTransient((mm) => moveStates(mm, moves));
     } else if (d.kind === 'edge') {
       if (Math.hypot(ev.clientX - d.sx, ev.clientY - d.sy) > 6) d.moved = true;
@@ -194,7 +215,18 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
     drag.current = null;
     if (!d) return;
     const st = useApp.getState();
-    if (d.kind === 'move') st.endTransient();
+    if (d.kind === 'pan') {
+      const v = velocityRef.current.velocity();
+      flingView(v.x, v.y);
+    }
+    if (d.kind === 'move') {
+      if (!d.moved || d.alt) st.endTransient();
+      else {
+        const targets = new Map(st.project.machine.states.filter((s) => d.origins.has(s.id)).map((s) => [s.id, { x: snap(s.x), y: snap(s.y) }]));
+        animateStatesTo(targets, 0.25, true);
+      }
+      setDragging(false);
+    }
     if (d.kind === 'edge') {
       setTemp(null);
       const w = toWorld(ev.clientX, ev.clientY);
@@ -275,7 +307,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
               const active = activeStates.has(s.id);
               const issue = issueStates.has(s.id);
               const initial = m.initial === s.id;
-              const cls = ['state', sel && 'selected', active && 'active', issue && 'issue', s.accepting && 'accepting', pending === s.id && 'pending'].filter(Boolean).join(' ');
+              const cls = ['state', sel && 'selected', sel && dragging && 'lifted', active && 'active', issue && 'issue', s.accepting && 'accepting', pending === s.id && 'pending'].filter(Boolean).join(' ');
               const label = `Estado ${s.name}${initial ? ', inicial' : ''}${s.accepting ? ', de aceitação' : ''}${active ? ', ativo na simulação' : ''}`;
               return (
                 <g

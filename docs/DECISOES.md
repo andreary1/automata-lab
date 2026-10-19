@@ -189,6 +189,35 @@ Núcleo em `src/core/pda/`, sem React. Simulação em Web Worker cancelável.
 - **[App]** As ferramentas de Linguagens regulares só aceitam autômatos finitos; com um AP aberto,
   o painel explica isso e permite usar outros projetos ou ERs.
 
+## Movimento e materiais (princípios de interface da Apple)
+
+Aplicados a partir das palestras da WWDC ("Designing Fluid Interfaces", "The Details of UI
+Typography"), traduzidas para a web. Código em `src/ui/camera.ts` e no fim de `styles.css`.
+
+- **Resposta imediata:** botões e controles reagem ao pressionar (escala 0,97), não ao soltar;
+  `touch-action: manipulation` elimina o atraso de toque.
+- **Câmera interrompível:** "Ajustar", zoom por botões e enquadramento após "Organizar" usam mola
+  criticamente amortecida (damping 1,0, response 0,3–0,4 s), sempre a partir do valor atual na tela.
+  Qualquer gesto (arrastar o fundo, roda, agarrar um estado, tecla) interrompe a animação onde ela
+  estiver, sem salto. Zoom pela roda continua 1:1 com o gesto.
+- **Velocidade herdada:** soltar um arraste rápido da vista continua o movimento com a velocidade do
+  ponteiro (histórico dos últimos ~100 ms) e desacelera pela projeção de momento da Apple, com taxa
+  0,99 (firme) e velocidade limitada a 3000 px/s, para o diagrama não fugir da tela.
+- **Arraste 1:1:** o estado acompanha o ponteiro exatamente (respeitando onde foi agarrado); o
+  alinhamento à grade de 10 px acontece só ao soltar, com uma mola curta. O estado arrastado "sobe"
+  (sombra). Alt + arrastar continua sem grade. Tudo é uma única entrada no desfazer.
+- **Organizar:** os estados viajam até o novo lugar em vez de teletransportar; interromper
+  (agarrar um estado ou usar o teclado) congela onde estiver e registra.
+- **Caminhos simétricos e origem ancorada:** diálogos materializam (escala + desfoque) e saem pelo
+  mesmo caminho; avisos sobem e descem por baixo; o menu Exportar cresce a partir do botão.
+- **Materiais:** controles que flutuam sobre o diagrama (botões de painéis, dica, menu, ajuda) são
+  translúcidos (`backdrop-filter`); diálogos modais escurecem e desfocam o fundo para focar a tarefa.
+- **Tipografia:** tamanho base em `rem` (segue a preferência de fonte do navegador), tamanho óptico
+  automático, tracking negativo em títulos e positivo em rótulos pequenos em caixa alta.
+- **Acessibilidade:** `prefers-reduced-motion` troca molas, inércia, escalas e deslizes por mudança
+  instantânea ou fade curto; `prefers-reduced-transparency` torna os materiais sólidos;
+  `prefers-contrast: more` reforça bordas e texto secundário. A troca de tema claro/escuro é suave.
+
 ## Resultados
 
 Aceita · Rejeitada · Execução em andamento · Interrompida pelo usuário · Inconclusiva (limite de

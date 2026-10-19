@@ -107,6 +107,16 @@
 - Com limites muito altos, a busca pode consumir bastante memória (os traços guardam as
   configurações para a navegação); por isso os limites são configuráveis.
 
+## Refinamento de interação (princípios da Apple) ✅ (19/10/2026)
+- Câmera com mola interrompível, inércia ao soltar, arraste 1:1 com grade ao soltar, "Organizar"
+  animado, diálogos/avisos com entrada e saída simétricas, materiais translúcidos, tipografia em rem,
+  e respeito a reduzir movimento, transparência reduzida e alto contraste (detalhes em DECISOES.md).
+- Verificado no navegador com medições: quadros intermediários nas animações, parada exata ao
+  interromper, inércia que continua e para, posição sem grade durante o arraste e com grade após
+  soltar, desfazer em uma etapa, diálogo ainda visível ao sair e removido depois, escala ao
+  pressionar, `backdrop-filter` ativo; com "reduzir movimento", tudo instantâneo. Roteiros das
+  Etapas 1–3 continuam passando; 99 testes; sem erros de console.
+
 ## Próximas etapas
 1. **Etapa 4 — Máquinas de Turing**: ler §3.1 (Def. 3.3, configurações, exemplos 3.7–3.12),
    conferindo o deslocamento de páginas. MT determinística de uma fita, fita dinâmica, estados de
