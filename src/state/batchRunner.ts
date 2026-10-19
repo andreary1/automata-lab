@@ -1,4 +1,5 @@
-import { runBatch, type BatchResult } from '../core/fa/batch';
+import type { BatchResult } from '../core/fa/batch';
+import { runMachineBatch } from '../core/machineBatch';
 import { useApp } from './store';
 import BatchWorker from '../workers/batch.worker?worker&inline';
 
@@ -17,7 +18,7 @@ export function startBatch() {
     return;
   }
   const machine = st.project.machine;
-  const maxSteps = st.project.settings.maxSteps;
+  const settings = st.project.settings;
   st.setBatch({ running: true, progress: [0, cases.length], results: null, stale: false });
 
   const finish = (results: BatchResult[]) => {
@@ -63,7 +64,7 @@ export function startBatch() {
         interrupted([]);
       },
     };
-    w.postMessage({ machine, cases, maxSteps });
+    w.postMessage({ machine, cases, settings });
     return;
   }
   runOnMainThread();
@@ -76,7 +77,7 @@ export function startBatch() {
     const chunk = () => {
       if (cancelled) return interrupted(done);
       const end = Math.min(cases.length, i + 50);
-      done.push(...runBatch(machine, cases.slice(i, end), { maxSteps }));
+      done.push(...runMachineBatch(machine, cases.slice(i, end), settings));
       i = end;
       useApp.getState().setBatch({ progress: [i, cases.length] });
       if (i < cases.length) setTimeout(chunk, 0);

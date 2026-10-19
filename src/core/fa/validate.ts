@@ -19,7 +19,10 @@ export type IssueCode =
   | 'dfa-conflict'
   | 'dfa-missing'
   | 'unreachable'
-  | 'no-accepting';
+  | 'no-accepting'
+  | 'duplicate-transition'
+  | 'pda-multi-push'
+  | 'pda-empty-mode';
 
 export interface Issue {
   severity: Severity;

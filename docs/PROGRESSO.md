@@ -70,9 +70,45 @@
   tabela/lista no painel.
 - Nomes de estado do produto podem ficar longos; use a opção de renomear.
 
+## Etapa 3 — Autômatos com pilha ✅ (19/10/2026)
+
+### Funcionando (verificado)
+- Novo tipo de projeto **AP** (Projetos → Novo AP, ou exemplos). Editor de transições com campos
+  próprios (lê / desempilha / empilha, com validação contra Σ e Γ), várias transições por seta,
+  rótulos "a, b → c" em várias linhas no diagrama.
+- Painel "Máquina" do AP: Σ, Γ (renomear/remover com confirmação), modo de aceitação (estado final
+  do livro ou pilha vazia, separado), pilha inicial.
+- Tabela de transições e definição formal (6-upla) do AP.
+- Simulação em Web Worker (cancelável): veredito imediato; caminho de aceitação passo a passo com a
+  pilha desenhada e a explicação de cada transição; vista de todos os ramos de cada passo da busca;
+  contagem de configurações por estado no diagrama.
+- Teste em lote para AP com limites de profundidade, configurações e altura da pilha.
+- Exemplos: aⁿbⁿ (Ex. 2.14), aⁱbʲcᵏ (Ex. 2.16), wwᴿ (Ex. 2.18), parênteses balanceados (pilha
+  vazia) e "ramo infinito" (mostra o resultado inconclusivo).
+- Esquema JSON v2 (AP + limites), compatível com arquivos v1.
+- Correção também para AF: mudar a cadeia de entrada agora invalida a simulação anterior (antes,
+  Executar podia mostrar o resultado da cadeia anterior).
+
+### Verificações executadas
+- `npm test`: 99 testes (80 anteriores + 19 novos). Destaques: linguagens dos Exemplos 2.14, 2.16 e
+  2.18 conferidas em todas as cadeias até tamanho 7–10 (amostragem complementar); não aceitar por
+  passar em F antes do fim; pilha inicial vazia; mesmas configurações com pilhas diferentes; ordem
+  da pilha da Figura 2.23; modo pilha vazia separado; ramo infinito inconclusivo (três limites);
+  rejeição só com exploração completa; cancelamento; validação; ida e volta JSON v2 e importação v1.
+- `npm run build`: sem erros de tipo.
+- Navegador (Playwright/Chromium): exemplos, caminho de aceitação e ramos, rejeições, inconclusivo,
+  interromper busca longa, pilha vazia, lote, tabela e definição formal, AP criado do zero com
+  edição por campos e erro de Γ, exportar/importar/recarregar, aviso no painel de linguagens
+  regulares, tema escuro e celular; roteiros das Etapas 1 e 2 continuam passando; sem erros de console.
+
+### Limitações conhecidas
+- Conversões GLC ↔ AP ainda não existem (extensão futura prevista).
+- A vista "todos os ramos" lista até 80 configurações por passo (o total é informado).
+- Com limites muito altos, a busca pode consumir bastante memória (os traços guardam as
+  configurações para a navegação); por isso os limites são configuráveis.
+
 ## Próximas etapas
-1. **Etapa 3 — Autômatos com pilha**: ler §2.2 (Def. 2.13, definição formal de computação, exemplos)
-   antes; conferir o deslocamento de páginas do PDF. Editor de transições (lê, desempilha, empilha),
-   visualização da pilha, simulação não determinística em largura, aceitação por estado final como
-   padrão do livro (pilha vazia como modo separado), exemplo {aⁿbⁿ | n ≥ 0}.
-2. **Etapa 4 — MT** (§3.1, p. 143+).
+1. **Etapa 4 — Máquinas de Turing**: ler §3.1 (Def. 3.3, configurações, exemplos 3.7–3.12),
+   conferindo o deslocamento de páginas. MT determinística de uma fita, fita dinâmica, estados de
+   aceitação e rejeição separados, convenção de fronteira da fita do livro, limite de passos
+   (inconclusivo ≠ rejeição), sem prometer decidir parada/equivalência.

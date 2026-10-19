@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { KIND_LABEL } from '../core/machine';
 import { serializeProjects } from '../core/persistence/schema';
 import { projectStore, useApp } from '../state/store';
 import { diagramSVGString, downloadBlob, downloadText, safeFileName, svgToPng } from './exportDiagram';
@@ -79,7 +80,7 @@ export function TopBar({ svgRef, onImport }: { svgRef: React.RefObject<SVGSVGEle
       </button>
       <div className="project-name">
         <input value={project.name} onChange={(e) => st.setProjectMeta({ name: e.target.value })} aria-label="Nome do projeto" />
-        <span className={`kind-badge ${project.machine.kind}`}>{project.machine.kind === 'dfa' ? 'AFD' : 'AFN'}</span>
+        <span className={`kind-badge ${project.machine.kind}`}>{KIND_LABEL[project.machine.kind]}</span>
       </div>
       <span className={`save-status ${saveStatus.kind}`} title={saveStatus.message ?? 'Salvamento automático local. Não é sincronização em nuvem: os dados ficam só neste navegador e dispositivo. Exporte em JSON para guardar uma cópia.'} role="status">
         {saveText}

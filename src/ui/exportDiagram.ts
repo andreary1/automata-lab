@@ -1,4 +1,4 @@
-import type { FiniteAutomaton } from '../core/fa/model';
+import type { GraphMachine } from '../core/graph';
 import { diagramBounds } from './geometry';
 
 /**
@@ -18,7 +18,7 @@ const EXPORT_CSS = `
 .halo,.active-badge,.issue-badge{display:none}
 `;
 
-export function diagramSVGString(svg: SVGSVGElement, m: FiniteAutomaton): string {
+export function diagramSVGString(svg: SVGSVGElement, m: GraphMachine): string {
   const content = svg.querySelector('g.diagram-content');
   const b = diagramBounds(m);
   const clone = content ? (content.cloneNode(true) as SVGGElement) : document.createElementNS('http://www.w3.org/2000/svg', 'g');

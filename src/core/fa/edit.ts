@@ -1,31 +1,33 @@
 import { buildDelta } from './delta';
 import type { FAEdge, FAState, FiniteAutomaton } from './model';
 import { newId } from '../ids';
+import type { GraphMachine } from '../graph';
 
 /**
  * Operações puras de edição. Todas devolvem uma NOVA máquina (imutabilidade
  * facilita desfazer/refazer).
  */
 
-export function nextStateName(m: FiniteAutomaton, prefix = 'q'): string {
+export function nextStateName(m: GraphMachine, prefix = 'q'): string {
   const used = new Set(m.states.map((s) => s.name));
   for (let i = 0; ; i++) if (!used.has(`${prefix}${i}`)) return `${prefix}${i}`;
 }
 
-export function addState(m: FiniteAutomaton, x: number, y: number, id = newId('s')): FiniteAutomaton {
+// As operações abaixo valem para qualquer modelo desenhado como grafo (AF, AP, …).
+export function addState<M extends GraphMachine>(m: M, x: number, y: number, id = newId('s')): M {
   const s: FAState = { id, name: nextStateName(m), x, y, accepting: false };
   return { ...m, states: [...m.states, s], initial: m.initial ?? id };
 }
 
-export function updateState(m: FiniteAutomaton, id: string, patch: Partial<Omit<FAState, 'id'>>): FiniteAutomaton {
+export function updateState<M extends GraphMachine>(m: M, id: string, patch: Partial<Omit<FAState, 'id'>>): M {
   return { ...m, states: m.states.map((s) => (s.id === id ? { ...s, ...patch } : s)) };
 }
 
-export function moveStates(m: FiniteAutomaton, moves: Map<string, { x: number; y: number }>): FiniteAutomaton {
+export function moveStates<M extends GraphMachine>(m: M, moves: Map<string, { x: number; y: number }>): M {
   return { ...m, states: m.states.map((s) => (moves.has(s.id) ? { ...s, ...moves.get(s.id)! } : s)) };
 }
 
-export function deleteStates(m: FiniteAutomaton, ids: Set<string>): FiniteAutomaton {
+export function deleteStates<M extends GraphMachine>(m: M, ids: Set<string>): M {
   return {
     ...m,
     states: m.states.filter((s) => !ids.has(s.id)),
@@ -50,7 +52,7 @@ export function updateEdge(m: FiniteAutomaton, id: string, patch: Partial<Pick<F
   return { ...m, edges: m.edges.map((e) => (e.id === id ? { ...e, ...patch } : e)) };
 }
 
-export function deleteEdges(m: FiniteAutomaton, ids: Set<string>): FiniteAutomaton {
+export function deleteEdges<M extends GraphMachine>(m: M, ids: Set<string>): M {
   return { ...m, edges: m.edges.filter((e) => !ids.has(e.id)) };
 }
 

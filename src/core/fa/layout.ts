@@ -1,4 +1,4 @@
-import type { FiniteAutomaton } from './model';
+import type { GraphMachine } from '../graph';
 
 /**
  * Organização automática em camadas (algoritmo complementar, não do livro):
@@ -6,7 +6,7 @@ import type { FiniteAutomaton } from './model';
  * para uma camada final. Dentro de cada camada, ordena pela média das posições
  * dos predecessores (heurística de baricentro, uma passada) para reduzir cruzamentos.
  */
-export function autoLayout(m: FiniteAutomaton, opts: { dx?: number; dy?: number } = {}): Map<string, { x: number; y: number }> {
+export function autoLayout(m: GraphMachine, opts: { dx?: number; dy?: number } = {}): Map<string, { x: number; y: number }> {
   const dx = opts.dx ?? 170;
   const dy = opts.dy ?? 120;
   const adj = new Map<string, string[]>();

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addState, ensureEdge, moveStates, suggestSymbols } from '../core/fa/edit';
-import type { FiniteAutomaton } from '../core/fa/model';
-import { validate } from '../core/fa/validate';
+import { edgeLabelLines, isEdgeEmpty, isPDA, validateMachine, type Machine } from '../core/machine';
+import { ensurePDAEdge, suggestTransition } from '../core/pda/edit';
+import type { SimState } from '../state/store';
 import { useApp } from '../state/store';
-import { diagramBounds, edgeGeometry, edgeLabel, R } from './geometry';
+import { diagramBounds, edgeGeometry, firstLineY, R } from './geometry';
 
 type Drag =
   | { kind: 'pan'; sx: number; sy: number; vx: number; vy: number }
@@ -27,7 +28,7 @@ export function createEdge(from: string, to: string) {
       edgeId = existing.id;
       return m;
     }
-    const r = ensureEdge(m, from, to, { symbols: suggestSymbols(m, from) });
+    const r = isPDA(m) ? ensurePDAEdge(m, from, to, suggestTransition(m)) : ensureEdge(m, from, to, { symbols: suggestSymbols(m, from) });
     edgeId = r.edgeId;
     return r.machine;
   });
@@ -48,13 +49,12 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
 
   const byId = useMemo(() => new Map(m.states.map((s) => [s.id, s])), [m.states]);
-  const report = useMemo(() => validate(m), [m]);
+  const report = useMemo(() => validateMachine(m), [m]);
   const issueStates = useMemo(() => new Set(report.issues.filter((i) => i.severity !== 'info').flatMap((i) => i.stateIds ?? [])), [report]);
   const issueEdges = useMemo(() => new Set(report.issues.filter((i) => i.severity !== 'info').flatMap((i) => i.edgeIds ?? [])), [report]);
 
-  const step = sim.trace && !sim.stale ? sim.trace.steps[sim.cursor] : undefined;
-  const activeStates = new Set(step?.active ?? []);
-  const usedEdges = new Set([...(step?.symbolEdges ?? []), ...(step?.epsilonEdges ?? [])]);
+  const { activeCount, usedEdges } = useMemo(() => highlights(m, sim), [m, sim]);
+  const activeStates = new Set(activeCount.keys());
 
   const toWorld = useCallback(
     (cx: number, cy: number) => {
@@ -262,7 +262,7 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
               const sel = selection.edges.includes(e.id);
               const used = usedEdges.has(e.id);
               const issue = issueEdges.has(e.id);
-              const cls = ['edge', sel && 'selected', used && 'used', issue && 'issue', e.symbols.length === 0 && !e.epsilon && 'empty'].filter(Boolean).join(' ');
+              const cls = ['edge', sel && 'selected', used && 'used', issue && 'issue', isEdgeEmpty(m, e.id) && 'empty'].filter(Boolean).join(' ');
               return (
                 <g key={e.id} className={cls} onPointerDown={(ev) => onEdgeDown(ev, e.id)}>
                   <path d={g.path} className="edge-hit" />
@@ -306,7 +306,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
                   {active && (
                     <g className="active-badge" transform={`translate(${R * 0.72} ${-R * 0.72})`}>
                       <circle r={8} />
-                      <text dy="0.35em">●</text>
+                      <text dy="0.35em">{(activeCount.get(s.id) ?? 0) > 1 ? Math.min(activeCount.get(s.id)!, 99) : '●'}</text>
+                      {(activeCount.get(s.id) ?? 0) > 1 && <title>{`${activeCount.get(s.id)} configurações neste estado (pilhas diferentes)`}</title>}
                     </g>
                   )}
                   {issue && !active && (
@@ -323,16 +324,24 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
               if (!g) return null;
               const used = usedEdges.has(e.id);
               const sel = selection.edges.includes(e.id);
+              const lines = edgeLabelLines(m, e.id);
+              const y0 = firstLineY(g, lines.length);
               return (
                 <text
                   key={`l-${e.id}`}
                   x={g.labelX}
-                  y={g.labelY}
+                  y={y0}
                   dy="0.35em"
                   className={`edge-label${used ? ' used' : ''}${sel ? ' selected' : ''}${issueEdges.has(e.id) ? ' issue' : ''}`}
                   onPointerDown={(ev) => onEdgeDown(ev, e.id)}
                 >
-                  {edgeLabel(e)}
+                  {lines.length === 1
+                    ? lines[0]
+                    : lines.map((l, i) => (
+                        <tspan key={i} x={g.labelX} dy={i === 0 ? '0.35em' : 15}>
+                          {l}
+                        </tspan>
+                      ))}
                 </text>
               );
             })}
@@ -346,7 +355,29 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
   );
 }
 
-function CanvasHint({ machine }: { machine: FiniteAutomaton }) {
+/** Estados ativos (com contagem de configurações) e arestas usadas no ponto atual da simulação. */
+function highlights(m: Machine, sim: SimState): { activeCount: Map<string, number>; usedEdges: Set<string> } {
+  const activeCount = new Map<string, number>();
+  const usedEdges = new Set<string>();
+  if (sim.stale) return { activeCount, usedEdges };
+  if (sim.trace && !isPDA(m)) {
+    const step = sim.trace.steps[sim.cursor];
+    for (const s of step?.active ?? []) activeCount.set(s, 1);
+    for (const e of [...(step?.symbolEdges ?? []), ...(step?.epsilonEdges ?? [])]) usedEdges.add(e);
+  } else if (sim.pdaTrace) {
+    const t = sim.pdaTrace;
+    const ids = sim.pdaView === 'path' && t.acceptingPath ? [t.acceptingPath[sim.cursor]] : (t.levels[sim.cursor]?.configs ?? []);
+    for (const id of ids) {
+      const c = t.configs[id];
+      if (!c) continue;
+      activeCount.set(c.state, (activeCount.get(c.state) ?? 0) + 1);
+      if (c.via) usedEdges.add(c.via.edgeId);
+    }
+  }
+  return { activeCount, usedEdges };
+}
+
+function CanvasHint({ machine }: { machine: Machine }) {
   const tool = useApp((s) => s.tool);
   const pending = useApp((s) => s.pendingEdgeFrom);
   let text = '';

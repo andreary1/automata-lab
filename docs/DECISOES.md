@@ -9,7 +9,8 @@ livro; **[App]** convenção escolhida pelo aplicativo.
 O PDF fornecido é digitalizado (sem camada de texto); as páginas foram lidas visualmente.
 **Mapa de páginas (o deslocamento muda ao longo do PDF; sempre confira o número impresso):**
 página do livro + 16 até a p. 54; +17 da p. 55 em diante no capítulo 1 (o PDF 71 é uma página em
-branco inserida); no capítulo 4 o deslocamento observado é +14 (p. 176–177 = PDF 190–191).
+branco inserida); no capítulo 2 volta a ser +16 (p. 115 = PDF 131); no capítulo 4 o deslocamento
+observado é +14 (p. 176–177 = PDF 190–191).
 
 ### Etapa 1
 
@@ -43,8 +44,19 @@ branco inserida); no capítulo 4 o deslocamento observado é +14 (p. 176–177 =
 | AF → ER de 2 e 3 estados | Exemplos 1.66 e 1.68, Figuras 1.67 e 1.69 | 76–78 (93–95) |
 | Vacuidade e equivalência de AFDs | Teoremas 4.4 e 4.5 | 176–177 (190–191) |
 
-Ainda não lidas: AP §2.2 (p. 114+), MT §3.1 (p. 143+). Ler antes das Etapas 3–4, conferindo
-o deslocamento de páginas.
+### Etapa 3
+
+| Assunto | Referência | Página do livro (PDF) |
+|---|---|---|
+| Pilha, ideia do AP para {0ⁿ1ⁿ} | §2.2 | 115 (131) |
+| Definição de AP; Σε, Γε | Definição 2.13 | 116 (132) |
+| Definição formal de computação (s₀ = ε, s = at, aceitação em F) | — | 116–117 (132–133) |
+| AP M₁ para {0ⁿ1ⁿ}; diagramas "a, b → c"; $ como marcador de fundo | Exemplo 2.14, Figura 2.15 | 117–118 (133–134) |
+| AP para aⁱbʲcᵏ com i = j ou i = k | Exemplo 2.16, Figura 2.17 | 118–119 (134–135) |
+| AP para wwᴿ | Exemplo 2.18, Figura 2.19 | 119 (135) |
+| Abreviação (r, u) ∈ δ(q, a, s): empilhar cadeia, u₁ no topo | Prova do Lema 2.21, Figura 2.23 | 121–122 (137–138) |
+
+Ainda não lida: MT §3.1 (p. 143+). Ler antes da Etapa 4, conferindo o deslocamento de páginas.
 
 ## Autômatos finitos
 
@@ -138,6 +150,45 @@ com limite de estados (padrão 5000). Os resultados **sempre** abrem como projet
   (20 × o limite) e tamanho das ER intermediárias (200 mil caracteres). Exceder dá
   **inconclusivo**, nunca um resultado parcial.
 
+## Autômatos com pilha (Etapa 3)
+
+Núcleo em `src/core/pda/`, sem React. Simulação em Web Worker cancelável.
+
+- **[Livro]** AP = (Q, Σ, Γ, δ, q0, F), δ: Q × Σε × Γε → P(Q × Γε) (Def. 2.13).
+- **[Livro]** Computação (p. 116–117): começa em q0 com a pilha **vazia** (s₀ = ε); um passo de
+  (q, i, at) usa (r, b) ∈ δ(q, w_{i+1}, a) e vai a (r, i′, bt), lendo um símbolo ou ε, desempilhando
+  a (ou ε) e empilhando b (ou ε). **Aceita** se existe uma computação que lê toda a entrada e termina
+  em F. Passar por F antes do fim não basta (há teste e exemplo).
+- **[Livro]** O livro não tem teste de pilha vazia nem de fim de entrada; usa o marcador $ (p. 118).
+  Os exemplos seguem isso.
+- **[App]** Pilha escrita como cadeia com o **topo à esquerda** (como "at" no livro), e desenhada
+  na vertical com o topo em cima.
+- **[App]** Empilhar mais de um símbolo é permitido como a **abreviação da Figura 2.23**:
+  (r, u₁…uₗ) ∈ δ(q, a, s) empilha uₗ primeiro e u₁ por último, então **u₁ fica no topo**. A validação
+  marca essas transições com uma informação (não é erro).
+- **[App]** Edição por campos: "Lê" (ε ou símbolo de Σ), "Desempilha" (ε ou símbolo de Γ),
+  "Empilha" (cadeia de Γ, vazio = ε; com símbolos de vários caracteres, separe por espaço). Cada seta
+  guarda várias transições, exibidas uma por linha no rótulo.
+- **[App] Modo de aceitação.** Padrão: estado final (livro). Modo separado: **pilha vazia**, com
+  pilha inicial opcional (ex.: Z). No modo pilha vazia F é ignorado (aviso) e, com pilha inicial
+  vazia, ε é sempre aceita (aviso).
+- **[Complementar] Busca em largura nas configurações** (estado, posição, pilha): estratégia justa,
+  todo ramo avança um passo antes de qualquer outro avançar dois. Estados iguais com pilhas
+  diferentes são configurações diferentes. Configurações idênticas já vistas não são reexploradas
+  (mesmo futuro), o que garante término quando o conjunto alcançável é finito.
+- **Resultados:** aceita assim que um ramo aceita (a BFS dá um caminho de aceitação de menor
+  número de passos); **rejeita somente** se todas as configurações alcançáveis foram exploradas e
+  nenhum ramo foi cortado; caso contrário **inconclusiva** (limite de passos/profundidade, de
+  configurações ou de altura da pilha). Um limite nunca é tratado como prova de execução infinita.
+- **[App]** Limites por projeto (esquema v2): passos (profundidade), configurações (padrão 50 000)
+  e altura da pilha (padrão 500), editáveis na aba Teste em lote.
+- **[App]** Interface da simulação: o veredito aparece assim que a busca termina; depois é possível
+  percorrer o **caminho de aceitação** (com a explicação de cada transição e a pilha) ou **todos os
+  ramos** de cada passo da busca. No diagrama, o número no estado indica quantas configurações estão
+  nele. "Passos" no lote = profundidade alcançada (no aceite, comprimento do caminho).
+- **[App]** As ferramentas de Linguagens regulares só aceitam autômatos finitos; com um AP aberto,
+  o painel explica isso e permite usar outros projetos ou ERs.
+
 ## Resultados
 
 Aceita · Rejeitada · Execução em andamento · Interrompida pelo usuário · Inconclusiva (limite de
@@ -153,14 +204,19 @@ nunca rejeição. Lote cancelado marca as cadeias restantes como interrompidas.
 - Lote executa em Web Worker (embutido no bundle); cancelar = `terminate()`. Se o navegador não
   permitir workers, roda na thread principal em fatias, também cancelável.
 - Persistência: `localStorage`, uma chave por projeto + índice; JSON com `format` e
-  `schemaVersion` (=1), validação estrutural completa na importação; importar sempre cria
-  projetos novos.
+  `schemaVersion` (2 desde a Etapa 3; arquivos v1 continuam sendo aceitos), validação estrutural
+  completa na importação; importar sempre cria projetos novos. Versões antigas do app recusam
+  arquivos v2 com mensagem clara em vez de lê-los errado.
+- Modelos desenhados como grafo compartilham `GraphMachine` (`src/core/graph.ts`); edição, layout e
+  geometria são genéricos. `src/core/machine.ts` reúne o tipo `Machine` (AF | AP) e o despacho
+  (validação, rótulos, alfabeto de entrada).
 - Exportação SVG/PNG serializa o mesmo SVG do canvas (sem segunda implementação de desenho).
 
 ## Pontos de extensão previstos
 
-- `RunStatus` e `STATUS_LABEL` já cobrem os seis resultados para AP e MT.
-- `schema.ts` tem `migrate()` para novas versões de esquema; `machine.kind` será ampliado
-  (`'pda'`, `'tm'`) com modelos próprios em `core/pda/`, `core/tm/`.
-- O canvas recebe rótulos via `edgeLabel()`; AP e MT precisarão de rótulos estruturados
-  (leitura, desempilha, empilha / lê, escreve, move) editados em campos próprios.
+- `RunStatus` e `STATUS_LABEL` cobrem os seis resultados, usados por AF e AP; a MT usará os mesmos.
+- Para a MT: acrescentar `'tm'` ao tipo `Machine`, um `parseTM` em `schema.ts` (subindo
+  `SCHEMA_VERSION`), rótulos em `edgeLabelLines`, painéis próprios (como `PDAPanels.tsx`) e uma vista
+  de fita (como `PDASimulation.tsx`).
+- Extensões futuras previstas no prompt: GLC ↔ AP (Lema 2.21 já está lido), MT multifita e não
+  determinística.

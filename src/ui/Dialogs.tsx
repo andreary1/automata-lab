@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { emptyAutomaton } from '../core/fa/model';
+import { inputAlphabet, KIND_LABEL } from '../core/machine';
+import { emptyPDA } from '../core/pda/model';
 import { newProject, type Project } from '../core/persistence/schema';
 import { askConfirm, projectStore, useApp } from '../state/store';
 import { HELP } from './HelpTip';
@@ -44,8 +46,8 @@ export function ProjectsDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const create = (kind: 'dfa' | 'nfa') => {
-    st.openProject(newProject(kind === 'dfa' ? 'Novo AFD' : 'Novo AFN', emptyAutomaton(kind)));
+  const create = (kind: 'dfa' | 'nfa' | 'pda') => {
+    st.openProject(kind === 'pda' ? newProject('Novo AP', emptyPDA()) : newProject(kind === 'dfa' ? 'Novo AFD' : 'Novo AFN', emptyAutomaton(kind)));
     close();
   };
 
@@ -61,12 +63,15 @@ export function ProjectsDialog() {
         <button className="btn" onClick={() => create('nfa')}>
           <Icon name="plus" /> Novo AFN
         </button>
+        <button className="btn" onClick={() => create('pda')}>
+          <Icon name="plus" /> Novo AP
+        </button>
       </div>
       <ul className="project-list">
         {list.map((p) => (
           <li key={p.id} className={p.id === current.id ? 'current' : ''}>
             <div>
-              <strong>{p.name || '(sem nome)'}</strong> <span className={`kind-badge ${p.kind}`}>{p.kind === 'dfa' ? 'AFD' : 'AFN'}</span>
+              <strong>{p.name || '(sem nome)'}</strong> <span className={`kind-badge ${p.kind}`}>{KIND_LABEL[p.kind as keyof typeof KIND_LABEL] ?? p.kind}</span>
               {p.id === current.id && <span className="tag">aberto</span>}
               {p.description && <p className="muted small">{p.description}</p>}
               <p className="muted small">Atualizado em {new Date(p.updatedAt).toLocaleString('pt-BR')}</p>
@@ -125,7 +130,7 @@ export function ImportDialog({ pending, warnings, onClose }: { pending: Project[
       <ul className="import-list">
         {pending.map((p) => (
           <li key={p.id}>
-            <strong>{p.name}</strong> — {p.machine.kind === 'dfa' ? 'AFD' : 'AFN'}, {p.machine.states.length} estado(s), Σ = {`{${p.machine.alphabet.join(', ')}}`}
+            <strong>{p.name}</strong> — {KIND_LABEL[p.machine.kind]}, {p.machine.states.length} estado(s), Σ = {`{${inputAlphabet(p.machine).join(', ')}}`}
           </li>
         ))}
       </ul>
@@ -206,6 +211,7 @@ export function HelpDialog() {
             <li>Resultados possíveis: Aceita, Rejeitada, Execução em andamento, Interrompida pelo usuário, Inconclusiva (limite de passos) e Máquina ou entrada inválida.</li>
             <li>Testes em lote verificam amostras; não provam que a máquina reconhece uma linguagem.</li>
             <li>"Linguagens regulares" (barra superior) converte e combina máquinas e expressões regulares. Os resultados sempre abrem como projetos novos. A equivalência é decidida de forma exata (Teorema 4.5) e, quando as linguagens diferem, mostra o menor contraexemplo.</li>
+            <li>Autômatos com pilha seguem a Definição 2.13: a pilha começa vazia e a aceitação padrão é por estado final ao fim da entrada; "pilha vazia" é um modo separado. A pilha é escrita com o topo à esquerda; ao empilhar vários símbolos, o primeiro escrito fica no topo (Figura 2.23). A simulação explora as configurações em largura; rejeitar exige explorar todas, e um limite atingido dá resultado inconclusivo.</li>
             <li>Expressões regulares: ∪ ou | para união, justaposição para concatenação, * para estrela, ⁺ para RR*, ε, ∅, Σ, e &lt;NOME&gt; para símbolos de vários caracteres. "+" sozinho não é aceito.</li>
           </ul>
         </section>

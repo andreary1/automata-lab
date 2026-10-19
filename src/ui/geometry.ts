@@ -1,4 +1,5 @@
-import type { FAEdge, FAState, FiniteAutomaton } from '../core/fa/model';
+import type { FAEdge, FAState } from '../core/fa/model';
+import type { GraphEdge, GraphMachine } from '../core/graph';
 
 export const R = 26;
 
@@ -6,6 +7,14 @@ export interface EdgeGeom {
   path: string;
   labelX: number;
   labelY: number;
+  /** Para rótulos de várias linhas: -1 cresce para cima, +1 para baixo, 0 centralizado. */
+  grow: -1 | 0 | 1;
+}
+
+/** Posição (y) da primeira linha de um rótulo de `n` linhas, conforme a direção de crescimento. */
+export function firstLineY(g: EdgeGeom, n: number, lineHeight = 15): number {
+  if (n <= 1) return g.labelY;
+  return g.grow < 0 ? g.labelY - (n - 1) * lineHeight : g.grow > 0 ? g.labelY : g.labelY - ((n - 1) * lineHeight) / 2;
 }
 
 export function edgeLabel(e: FAEdge): string {
@@ -21,7 +30,7 @@ export function edgeLabel(e: FAEdge): string {
  *  - caso comum: segmento reto entre as bordas dos círculos.
  * Transições paralelas no mesmo sentido não existem: são uma aresta com vários símbolos.
  */
-export function edgeGeometry(m: FiniteAutomaton, e: FAEdge, byId: Map<string, FAState>): EdgeGeom | null {
+export function edgeGeometry(m: GraphMachine, e: GraphEdge, byId: Map<string, FAState>): EdgeGeom | null {
   const a = byId.get(e.from);
   const b = byId.get(e.to);
   if (!a || !b) return null;
@@ -36,9 +45,10 @@ export function edgeGeometry(m: FiniteAutomaton, e: FAEdge, byId: Map<string, FA
       path: `M ${sx} ${sy} C ${a.x - 38} ${cy}, ${a.x + 38} ${cy}, ${ex} ${sy}`,
       labelX: a.x,
       labelY: a.y + dir * (R + 46),
+      grow: dir < 0 ? -1 : 1,
     };
   }
-  const reverse = m.edges.some((x) => x.from === b.id && x.to === a.id && (x.symbols.length > 0 || x.epsilon || x.id !== e.id));
+  const reverse = m.edges.some((x) => x.from === b.id && x.to === a.id && x.id !== e.id);
   const dx = b.x - a.x;
   const dy = b.y - a.y;
   const len = Math.hypot(dx, dy) || 1;
@@ -80,10 +90,11 @@ export function edgeGeometry(m: FiniteAutomaton, e: FAEdge, byId: Map<string, FA
     path: bend ? `M ${sx} ${sy} Q ${mx} ${my} ${tx} ${ty}` : `M ${sx} ${sy} L ${tx} ${ty}`,
     labelX: lx + nx * off,
     labelY: ly + ny * off,
+    grow: ny * off < -0.3 ? -1 : ny * off > 0.3 ? 1 : 0,
   };
 }
 
-export function diagramBounds(m: FiniteAutomaton): { x: number; y: number; w: number; h: number } {
+export function diagramBounds(m: GraphMachine): { x: number; y: number; w: number; h: number } {
   if (m.states.length === 0) return { x: 0, y: 0, w: 400, h: 300 };
   const xs = m.states.map((s) => s.x);
   const ys = m.states.map((s) => s.y);

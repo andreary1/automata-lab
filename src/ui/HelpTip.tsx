@@ -21,6 +21,14 @@ export const HELP: Record<string, { title: string; body: string }> = {
     title: 'Fecho-ε, E(R)',
     body: 'Conjunto de estados alcançáveis a partir de R seguindo zero ou mais transições ε (inclui o próprio R). O simulador aplica o fecho no início e depois de cada símbolo lido. Ciclos de ε são tratados sem repetição infinita.',
   },
+  pdaConfig: {
+    title: 'Configuração de um AP',
+    body: 'É o trio (estado, posição na entrada, conteúdo da pilha). Dois ramos no mesmo estado mas com pilhas diferentes são configurações diferentes. A pilha é escrita com o topo à esquerda, como no livro (s = at, com a no topo). A simulação explora as configurações em largura: todo ramo avança um passo antes de qualquer ramo avançar dois.',
+  },
+  pdaAcceptance: {
+    title: 'Aceitação em AP',
+    body: 'Padrão do Sipser: aceita se algum ramo consegue ler TODA a entrada e estar num estado de aceitação (a pilha pode ter qualquer conteúdo). Passar por F no meio da entrada não basta. O modo "pilha vazia" é uma convenção alternativa, oferecida separadamente: aceita se algum ramo lê toda a entrada com a pilha vazia. Rejeitar exige explorar todas as configurações alcançáveis; se um limite for atingido antes, o resultado é inconclusivo.',
+  },
   tokens: {
     title: 'Como a entrada é dividida',
     body: 'Se todos os símbolos de Σ têm um caractere, a cadeia é lida caractere a caractere (espaços são ignorados). Se algum símbolo tem vários caracteres, separe os símbolos por espaço: "1 0 RESET 2". Campo vazio (ou só "ε") = palavra vazia.',

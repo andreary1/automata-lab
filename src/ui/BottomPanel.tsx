@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { EXAMPLES } from '../core/examples';
 import type { BatchCase } from '../core/fa/batch';
-import { formatStateSet } from '../core/fa/model';
+import { formatStateSet, type FiniteAutomaton } from '../core/fa/model';
+import { isPDA } from '../core/machine';
+import { PDASimulationView } from './PDASimulation';
 import { STATUS_LABEL, type RunStatus } from '../core/fa/simulate';
 import { isMultiCharAlphabet } from '../core/fa/symbols';
 import { cancelBatch, startBatch } from '../state/batchRunner';
-import { useApp } from '../state/store';
+import { simLength, useApp } from '../state/store';
 import { HelpTip } from './HelpTip';
 import { Icon } from './icons';
 
 export function BottomPanel() {
   const tab = useApp((s) => s.bottomTab);
   const setTab = useApp((s) => s.setBottomTab);
+  const isMachinePDA = useApp((s) => isPDA(s.project.machine));
   return (
     <section className="panel bottom" aria-label="Simulação e testes">
       <div className="tabs" role="tablist">
@@ -22,7 +25,7 @@ export function BottomPanel() {
           Teste em lote
         </button>
       </div>
-      <div className="panel-scroll">{tab === 'sim' ? <SimulationView /> : <BatchView />}</div>
+      <div className="panel-scroll">{tab === 'sim' ? isMachinePDA ? <PDASimulationView /> : <SimulationView /> : <BatchView />}</div>
     </section>
   );
 }
@@ -37,25 +40,92 @@ export function StatusBadge({ status, extra }: { status: RunStatus; extra?: stri
   );
 }
 
+/** Hook de reprodução automática (avança o cursor no ritmo escolhido). */
+export function usePlayback() {
+  const playing = useApp((s) => s.sim.playing);
+  const speed = useApp((s) => s.sim.speed);
+  useEffect(() => {
+    if (!playing) return;
+    const t = setInterval(() => {
+      const s = useApp.getState();
+      const len = simLength(s.sim);
+      if (len === 0 || s.sim.cursor >= len - 1) s.simPause();
+      else useApp.setState((x) => ({ sim: { ...x.sim, cursor: x.sim.cursor + 1, playing: x.sim.cursor + 1 < len - 1 } }));
+    }, 1000 / speed);
+    return () => clearInterval(t);
+  }, [playing, speed]);
+}
+
+/** Entrada da cadeia e botões de controle, comuns a AF e AP. */
+export function SimControls({ multi, hasTrace, atEnd, canStop }: { multi: boolean; hasTrace: boolean; atEnd: boolean; canStop: boolean }) {
+  const sim = useApp((s) => s.sim);
+  const st = useApp.getState();
+  const busy = !!sim.computing;
+  return (
+      <div className="sim-controls">
+        <div className="field grow">
+          <span>
+            <label htmlFor="sim-input">Cadeia de entrada</label> <HelpTip topic="tokens" />
+          </span>
+          <input
+            id="sim-input"
+            className="mono"
+            value={sim.input}
+            placeholder={multi ? 'símbolos separados por espaço; vazio = ε' : 'ex.: 0101 — deixe vazio para ε'}
+            onChange={(e) => st.setSimInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void st.simStart();
+              }
+            }}
+            aria-describedby="sim-input-hint"
+          />
+          <small id="sim-input-hint" className="muted">
+            {sim.input.trim() === '' ? 'Entrada atual: ε (palavra vazia).' : multi ? 'Σ tem símbolos de vários caracteres: separe por espaço.' : 'Lida caractere a caractere.'} Enter prepara a execução passo a passo.
+          </small>
+        </div>
+        <div className="btn-group" role="group" aria-label="Controles da simulação">
+          {sim.playing ? (
+            <button className="btn primary" onClick={st.simPause} title="Pausar">
+              <Icon name="pause" /> Pausar
+            </button>
+          ) : (
+            <button className="btn primary" onClick={st.simPlay} title="Executar automaticamente" disabled={busy}>
+              <Icon name="play" /> Executar
+            </button>
+          )}
+          <button className="btn" onClick={() => st.simStep(-1)} disabled={!hasTrace || sim.cursor === 0 || busy} title="Voltar um passo" aria-label="Voltar um passo">
+            <Icon name="stepb" />
+          </button>
+          <button className="btn" onClick={() => st.simStep(1)} disabled={atEnd || busy} title="Avançar um passo" aria-label="Avançar um passo">
+            <Icon name="stepf" />
+          </button>
+          <button className="btn" onClick={st.simStop} disabled={!canStop && !busy} title="Interromper" aria-label="Interromper execução">
+            <Icon name="stop" />
+          </button>
+          <button className="btn" onClick={st.simReset} disabled={!hasTrace && !busy} title="Reiniciar" aria-label="Reiniciar">
+            <Icon name="reset" />
+          </button>
+        </div>
+        <label className="field speed">
+          <span>Velocidade: {sim.speed} passo(s)/s</span>
+          <input type="range" min={0.5} max={10} step={0.5} value={sim.speed} onChange={(e) => st.setSpeed(Number(e.target.value))} />
+        </label>
+      </div>
+  );
+}
+
 function SimulationView() {
   const sim = useApp((s) => s.sim);
-  const m = useApp((s) => s.project.machine);
+  const m = useApp((s) => s.project.machine) as FiniteAutomaton;
   const st = useApp.getState();
   const histRef = useRef<HTMLOListElement>(null);
   const trace = sim.trace;
   const last = trace ? trace.steps.length - 1 : 0;
   const step = trace?.steps[sim.cursor];
 
-  useEffect(() => {
-    if (!sim.playing) return;
-    const t = setInterval(() => {
-      const s = useApp.getState();
-      const tr = s.sim.trace;
-      if (!tr || s.sim.cursor >= tr.steps.length - 1) s.simPause();
-      else useApp.setState((x) => ({ sim: { ...x.sim, cursor: x.sim.cursor + 1, playing: x.sim.cursor + 1 < tr.steps.length - 1 } }));
-    }, 1000 / sim.speed);
-    return () => clearInterval(t);
-  }, [sim.playing, sim.speed]);
+  usePlayback();
 
   useEffect(() => {
     histRef.current?.querySelector('[aria-current="step"]')?.scrollIntoView({ block: 'nearest' });
@@ -74,57 +144,7 @@ function SimulationView() {
 
   return (
     <div className="sim">
-      <div className="sim-controls">
-        <div className="field grow">
-          <span>
-            <label htmlFor="sim-input">Cadeia de entrada</label> <HelpTip topic="tokens" />
-          </span>
-          <input
-            id="sim-input"
-            className="mono"
-            value={sim.input}
-            placeholder={multi ? 'símbolos separados por espaço; vazio = ε' : 'ex.: 0101 — deixe vazio para ε'}
-            onChange={(e) => st.setSimInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                st.simStart();
-              }
-            }}
-            aria-describedby="sim-input-hint"
-          />
-          <small id="sim-input-hint" className="muted">
-            {sim.input.trim() === '' ? 'Entrada atual: ε (palavra vazia).' : multi ? 'Σ tem símbolos de vários caracteres: separe por espaço.' : 'Lida caractere a caractere.'} Enter prepara a execução passo a passo.
-          </small>
-        </div>
-        <div className="btn-group" role="group" aria-label="Controles da simulação">
-          {sim.playing ? (
-            <button className="btn primary" onClick={st.simPause} title="Pausar">
-              <Icon name="pause" /> Pausar
-            </button>
-          ) : (
-            <button className="btn primary" onClick={st.simPlay} title="Executar automaticamente">
-              <Icon name="play" /> Executar
-            </button>
-          )}
-          <button className="btn" onClick={() => st.simStep(-1)} disabled={!trace || sim.cursor === 0} title="Voltar um passo" aria-label="Voltar um passo">
-            <Icon name="stepb" />
-          </button>
-          <button className="btn" onClick={() => st.simStep(1)} disabled={!!trace && !sim.stale && sim.cursor >= last} title="Avançar um passo" aria-label="Avançar um passo">
-            <Icon name="stepf" />
-          </button>
-          <button className="btn" onClick={st.simStop} disabled={!trace || status !== 'running'} title="Interromper" aria-label="Interromper execução">
-            <Icon name="stop" />
-          </button>
-          <button className="btn" onClick={st.simReset} disabled={!trace} title="Reiniciar" aria-label="Reiniciar">
-            <Icon name="reset" />
-          </button>
-        </div>
-        <label className="field speed">
-          <span>Velocidade: {sim.speed} passo(s)/s</span>
-          <input type="range" min={0.5} max={10} step={0.5} value={sim.speed} onChange={(e) => st.setSpeed(Number(e.target.value))} />
-        </label>
-      </div>
+      <SimControls multi={multi} hasTrace={!!trace} atEnd={!!trace && !sim.stale && sim.cursor >= last} canStop={!!trace && status === 'running'} />
 
       {sim.stale && <p className="callout warn">A máquina foi alterada depois desta execução. Os destaques foram ocultados; clique em Executar ou Avançar para recomeçar.</p>}
 
@@ -223,9 +243,21 @@ function BatchView() {
           </button>
         )}
         <label className="field inline">
-          <span>Limite de passos por cadeia</span>
+          <span>{isPDA(project.machine) ? 'Passos (profundidade)' : 'Limite de passos por cadeia'}</span>
           <input type="number" min={1} max={10_000_000} value={project.settings.maxSteps} onChange={(e) => setMaxSteps(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
         </label>
+        {isPDA(project.machine) && (
+          <>
+            <label className="field inline">
+              <span>Configurações</span>
+              <input type="number" min={10} max={5_000_000} value={project.settings.maxConfigs} onChange={(e) => useApp.getState().setLimits({ maxConfigs: Math.max(10, Math.floor(Number(e.target.value) || 10)) })} />
+            </label>
+            <label className="field inline">
+              <span>Altura da pilha</span>
+              <input type="number" min={1} max={100_000} value={project.settings.maxStack} onChange={(e) => useApp.getState().setLimits({ maxStack: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} />
+            </label>
+          </>
+        )}
         {exampleForProject && (
           <button className="btn small" onClick={() => setTests(structuredClone(exampleForProject.tests))}>
             Restaurar testes do exemplo

@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { completeWithSink, deleteEdges, deleteStates, removeSymbolEverywhere, renameSymbol, updateEdge, updateState } from '../core/fa/edit';
-import type { FAKind } from '../core/fa/model';
+import type { FAKind, FiniteAutomaton } from '../core/fa/model';
+import { edgeLabelLines, isPDA, validateMachine } from '../core/machine';
+import { PDAEdgeProps, PDAFormal, PDAMachineProps, PDATable } from './PDAPanels';
 import { formatStateSet } from '../core/fa/model';
 import { parseAlphabetText, symbolProblem } from '../core/fa/symbols';
 import { transitionTable } from '../core/fa/table';
-import { validate, type Issue } from '../core/fa/validate';
+import type { Issue } from '../core/fa/validate';
 import { askConfirm, useApp } from '../state/store';
 import { HelpTip } from './HelpTip';
 import { Icon } from './icons';
 
 export function RightPanel() {
   const tab = useApp((s) => s.rightTab);
+  const isMachinePDA = useApp((s) => s.project.machine.kind === 'pda');
   const setTab = useApp((s) => s.setRightTab);
   return (
     <aside className="panel right" aria-label="Propriedades e validação">
@@ -32,8 +35,8 @@ export function RightPanel() {
             <Validation />
           </>
         )}
-        {tab === 'table' && <TableView />}
-        {tab === 'formal' && <FormalView />}
+        {tab === 'table' && (isMachinePDA ? <PDATable /> : <TableView />)}
+        {tab === 'formal' && (isMachinePDA ? <PDAFormal /> : <FormalView />)}
       </div>
     </aside>
   );
@@ -48,10 +51,10 @@ function Properties() {
   }
   if (sel.edges.length === 1 && sel.states.length === 0) {
     const e = m.edges.find((x) => x.id === sel.edges[0]);
-    if (e) return <EdgeProps id={e.id} />;
+    if (e) return isPDA(m) ? <PDAEdgeProps id={e.id} /> : <EdgeProps id={e.id} />;
   }
   if (sel.states.length + sel.edges.length > 1) return <MultiProps />;
-  return <MachineProps />;
+  return isPDA(m) ? <PDAMachineProps /> : <MachineProps />;
 }
 
 function MultiProps() {
@@ -101,7 +104,7 @@ function StateProps({ id }: { id: string }) {
   const out = m.edges.filter((e) => e.from === id);
   const inc = m.edges.filter((e) => e.to === id && e.from !== id);
   const nm = (sid: string) => m.states.find((s) => s.id === sid)?.name ?? '?';
-  const lab = (e: (typeof m.edges)[number]) => [...e.symbols, ...(e.epsilon ? ['ε'] : [])].join(', ') || '(sem símbolo)';
+  const lab = (e: { id: string }) => edgeLabelLines(m, e.id).join(' | ');
   return (
     <section className="card">
       <h3>Estado</h3>
@@ -158,8 +161,8 @@ function StateProps({ id }: { id: string }) {
 }
 
 function EdgeProps({ id }: { id: string }) {
-  const m = useApp((s) => s.project.machine);
-  const apply = useApp((s) => s.apply);
+  const m = useApp((s) => s.project.machine) as FiniteAutomaton;
+  const apply = useApp((s) => s.applyFA);
   const clear = useApp((s) => s.clearSelection);
   const select = useApp((s) => s.select);
   const e = m.edges.find((x) => x.id === id)!;
@@ -236,9 +239,9 @@ function EdgeProps({ id }: { id: string }) {
 }
 
 function MachineProps() {
-  const m = useApp((s) => s.project.machine);
+  const m = useApp((s) => s.project.machine) as FiniteAutomaton;
   const project = useApp((s) => s.project);
-  const apply = useApp((s) => s.apply);
+  const apply = useApp((s) => s.applyFA);
   const setMeta = useApp((s) => s.setProjectMeta);
   const [symText, setSymText] = useState('');
   const [err, setErr] = useState<string | null>(null);
@@ -362,9 +365,9 @@ function MachineProps() {
 
 function Validation() {
   const m = useApp((s) => s.project.machine);
-  const apply = useApp((s) => s.apply);
+  const apply = useApp((s) => s.applyFA);
   const select = useApp((s) => s.select);
-  const report = useMemo(() => validate(m), [m]);
+  const report = useMemo(() => validateMachine(m), [m]);
   const order = { error: 0, warning: 1, info: 2 } as const;
   const issues = [...report.issues].sort((a, b) => order[a.severity] - order[b.severity]);
   const label = { error: 'Erro', warning: 'Aviso', info: 'Info' } as const;
@@ -373,7 +376,7 @@ function Validation() {
       <h3>
         Validação{' '}
         <span className={`badge ${report.valid ? 'ok' : 'bad'}`}>
-          {report.valid ? (report.incompleteDfa ? '✓ válida (AFD incompleto)' : `✓ ${m.kind === 'dfa' ? 'AFD' : 'AFN'} válido`) : '✗ com erros'}
+          {report.valid ? (report.incompleteDfa ? '✓ válida (AFD incompleto)' : `✓ ${{ dfa: 'AFD', nfa: 'AFN', pda: 'AP' }[m.kind]} válido`) : '✗ com erros'}
         </span>
       </h3>
       {issues.length === 0 && <p className="muted">Nenhum problema encontrado.</p>}
@@ -386,7 +389,7 @@ function Validation() {
                 onClick={() => {
                   let sink: string | null = null;
                   apply((mm) => {
-                    const r = completeWithSink(mm);
+                    const r = completeWithSink(mm as FiniteAutomaton);
                     sink = r.sinkId;
                     return r.machine;
                   });
@@ -433,7 +436,7 @@ function IssueItem({ issue, label, onShow, children }: { issue: Issue; label: st
 }
 
 function TableView() {
-  const m = useApp((s) => s.project.machine);
+  const m = useApp((s) => s.project.machine) as FiniteAutomaton;
   const select = useApp((s) => s.select);
   const t = useMemo(() => transitionTable(m), [m]);
   const name = (id: string) => m.states.find((s) => s.id === id)?.name ?? '?';
@@ -488,9 +491,9 @@ function TableView() {
 }
 
 function FormalView() {
-  const m = useApp((s) => s.project.machine);
+  const m = useApp((s) => s.project.machine) as FiniteAutomaton;
   const t = useMemo(() => transitionTable(m), [m]);
-  const report = useMemo(() => validate(m), [m]);
+  const report = useMemo(() => validateMachine(m), [m]);
   const Q = m.states.map((s) => s.name);
   const F = m.states.filter((s) => s.accepting).map((s) => s.name);
   const q0 = m.initial ? m.states.find((s) => s.id === m.initial)?.name : undefined;

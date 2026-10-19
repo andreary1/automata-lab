@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import type { BatchCase, BatchResult } from '../core/fa/batch';
 import type { FiniteAutomaton } from '../core/fa/model';
 import { simulateFA, type FATrace } from '../core/fa/simulate';
+import { isFA, isPDA, type Machine } from '../core/machine';
+import type { PDA } from '../core/pda/model';
+import type { PDATrace } from '../core/pda/simulate';
+import { runPDASimulation } from './pdaRunner';
 import { EXAMPLES } from '../core/examples';
 import { newProject, type Project } from '../core/persistence/schema';
 import { ProjectStore, type KV } from '../core/persistence/storage';
@@ -20,8 +24,15 @@ export interface View {
 
 export interface SimState {
   input: string;
+  /** Traço de autômato finito. */
   trace: FATrace | null;
-  /** Índice do passo exibido em trace.steps. */
+  /** Traço de autômato com pilha (busca em largura). */
+  pdaTrace: PDATrace | null;
+  /** AP: percorrer os passos da busca ('levels') ou o caminho de aceitação ('path'). */
+  pdaView: 'levels' | 'path';
+  /** AP: simulação em andamento no Web Worker. */
+  computing: { cancel: () => void } | null;
+  /** Índice exibido: passo do AF, nível da busca ou posição no caminho de aceitação. */
   cursor: number;
   playing: boolean;
   /** Passos por segundo. */
@@ -84,10 +95,10 @@ function readTheme(): Theme {
 
 export interface AppState {
   project: Project;
-  past: FiniteAutomaton[];
-  future: FiniteAutomaton[];
+  past: Machine[];
+  future: Machine[];
   /** Snapshot antes de uma edição contínua (arrastar). */
-  transientBase: FiniteAutomaton | null;
+  transientBase: Machine | null;
   selection: { states: string[]; edges: string[] };
   tool: Tool;
   pendingEdgeFrom: string | null;
@@ -106,15 +117,20 @@ export interface AppState {
   fitTick: number;
   confirmReq: { message: string; confirmLabel: string; resolve: (ok: boolean) => void } | null;
 
-  apply(fn: (m: FiniteAutomaton) => FiniteAutomaton): void;
+  apply(fn: (m: Machine) => Machine): void;
+  /** Aplica só se o projeto atual for um autômato finito. */
+  applyFA(fn: (m: FiniteAutomaton) => FiniteAutomaton): void;
+  /** Aplica só se o projeto atual for um AP. */
+  applyPDA(fn: (m: PDA) => PDA): void;
   beginTransient(): void;
-  applyTransient(fn: (m: FiniteAutomaton) => FiniteAutomaton): void;
+  applyTransient(fn: (m: Machine) => Machine): void;
   endTransient(): void;
   undo(): void;
   redo(): void;
   setProjectMeta(patch: Partial<Pick<Project, 'name' | 'description'>>): void;
   setTests(tests: BatchCase[]): void;
   setMaxSteps(n: number): void;
+  setLimits(patch: Partial<Project['settings']>): void;
   openProject(p: Project): void;
   select(sel: { states?: string[]; edges?: string[] }, additive?: boolean): void;
   clearSelection(): void;
@@ -133,7 +149,9 @@ export interface AppState {
 
   // Simulação
   setSimInput(s: string): void;
-  simStart(): FATrace;
+  /** Prepara a simulação (AF: síncrona; AP: em Web Worker). */
+  simStart(): Promise<void>;
+  setPdaView(v: 'levels' | 'path'): void;
   simStep(delta: 1 | -1): void;
   simJump(i: number): void;
   simPlay(): void;
@@ -145,8 +163,15 @@ export interface AppState {
   setBatch(patch: Partial<BatchState>): void;
 }
 
+/** Quantidade de posições navegáveis da simulação atual. */
+export function simLength(sim: SimState): number {
+  if (sim.trace) return sim.trace.steps.length;
+  if (sim.pdaTrace) return sim.pdaView === 'path' && sim.pdaTrace.acceptingPath ? sim.pdaTrace.acceptingPath.length : sim.pdaTrace.levels.length;
+  return 0;
+}
+
 const invalidateRuns = (s: AppState) => ({
-  sim: s.sim.trace ? { ...s.sim, playing: false, stale: true } : s.sim,
+  sim: s.sim.trace || s.sim.pdaTrace ? { ...s.sim, playing: false, stale: true } : s.sim,
   batch: s.batch.results ? { ...s.batch, stale: true } : s.batch,
 });
 
@@ -164,7 +189,7 @@ export const useApp = create<AppState>()((set, get) => ({
   bottomTab: 'sim',
   panels: { left: true, right: true, bottom: true },
   saveStatus: { kind: 'saved' },
-  sim: { input: '', trace: null, cursor: 0, playing: false, speed: 2, interrupted: false, stale: false },
+  sim: { input: '', trace: null, pdaTrace: null, pdaView: 'levels', computing: null, cursor: 0, playing: false, speed: 2, interrupted: false, stale: false },
   batch: { running: false, progress: [0, 0], results: null, stale: false },
   toast: null,
   dialog: null,
@@ -182,6 +207,12 @@ export const useApp = create<AppState>()((set, get) => ({
       future: [],
       ...invalidateRuns(s),
     });
+  },
+  applyFA(fn) {
+    get().apply((m) => (isFA(m) ? fn(m) : m));
+  },
+  applyPDA(fn) {
+    get().apply((m) => (isPDA(m) ? fn(m) : m));
   },
   beginTransient() {
     set({ transientBase: get().project.machine });
@@ -238,17 +269,21 @@ export const useApp = create<AppState>()((set, get) => ({
     set({ project: { ...s.project, tests, updatedAt: new Date().toISOString() }, batch: s.batch.results ? { ...s.batch, stale: true } : s.batch });
   },
   setMaxSteps(n) {
+    get().setLimits({ maxSteps: n });
+  },
+  setLimits(patch) {
     const s = get();
-    set({ project: { ...s.project, settings: { ...s.project.settings, maxSteps: n }, updatedAt: new Date().toISOString() } });
+    set({ project: { ...s.project, settings: { ...s.project.settings, ...patch }, updatedAt: new Date().toISOString() } });
   },
   openProject(p) {
+    get().sim.computing?.cancel();
     set({
       project: p,
       past: [],
       future: [],
       selection: { states: [], edges: [] },
       pendingEdgeFrom: null,
-      sim: { ...get().sim, input: '', trace: null, cursor: 0, playing: false, interrupted: false, stale: false },
+      sim: { ...get().sim, input: '', trace: null, pdaTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false },
       batch: { running: false, progress: [0, 0], results: null, stale: false },
       fitTick: get().fitTick + 1,
     });
@@ -318,36 +353,57 @@ export const useApp = create<AppState>()((set, get) => ({
   },
 
   setSimInput(input) {
-    set({ sim: { ...get().sim, input } });
+    const sim = get().sim;
+    // Mudar a entrada invalida a execução anterior (o próximo Executar/Avançar recomeça).
+    const had = sim.trace || sim.pdaTrace;
+    set({ sim: { ...sim, input, ...(had && input !== sim.input ? { stale: true, playing: false } : {}) } });
   },
-  simStart() {
+  async simStart() {
     const s = get();
-    const trace = simulateFA(s.project.machine, s.sim.input, { maxSteps: s.project.settings.maxSteps });
-    set({ sim: { ...s.sim, trace, cursor: 0, playing: false, interrupted: false, stale: false } });
-    return trace;
+    const m = s.project.machine;
+    s.sim.computing?.cancel();
+    if (isPDA(m)) {
+      const { maxSteps, maxConfigs, maxStack } = s.project.settings;
+      const job = runPDASimulation(m, s.sim.input, { maxSteps, maxConfigs, maxStack });
+      set({ sim: { ...get().sim, trace: null, pdaTrace: null, computing: job, cursor: 0, playing: false, interrupted: false, stale: false } });
+      const out = await job.promise;
+      if (get().sim.computing !== job) return; // substituída por outra execução
+      if (out === 'cancelled') {
+        set({ sim: { ...get().sim, computing: null, interrupted: true } });
+        return;
+      }
+      set({ sim: { ...get().sim, pdaTrace: out, computing: null, pdaView: out.acceptingPath ? 'path' : 'levels', cursor: 0 } });
+      return;
+    }
+    const trace = simulateFA(m, s.sim.input, { maxSteps: s.project.settings.maxSteps });
+    set({ sim: { ...s.sim, trace, pdaTrace: null, cursor: 0, playing: false, interrupted: false, stale: false } });
+  },
+  setPdaView(v) {
+    set({ sim: { ...get().sim, pdaView: v, cursor: 0, playing: false } });
   },
   simStep(d) {
     const s = get();
-    let trace = s.sim.trace;
-    if (!trace || s.sim.stale) {
-      trace = get().simStart();
+    if (s.sim.computing) return;
+    if ((!s.sim.trace && !s.sim.pdaTrace) || s.sim.stale) {
+      void get().simStart();
       return;
     }
-    const cursor = Math.max(0, Math.min(trace.steps.length - 1, s.sim.cursor + d));
+    const cursor = Math.max(0, Math.min(simLength(s.sim) - 1, s.sim.cursor + d));
     set({ sim: { ...get().sim, cursor, playing: false } });
   },
   simJump(i) {
     const s = get();
-    if (!s.sim.trace) return;
-    set({ sim: { ...s.sim, cursor: Math.max(0, Math.min(s.sim.trace.steps.length - 1, i)), playing: false } });
+    if (!s.sim.trace && !s.sim.pdaTrace) return;
+    set({ sim: { ...s.sim, cursor: Math.max(0, Math.min(simLength(s.sim) - 1, i)), playing: false } });
   },
-  simPlay() {
+  async simPlay() {
     const s = get();
-    let trace = s.sim.trace;
-    if (!trace || s.sim.stale || s.sim.interrupted) trace = get().simStart();
-    if (trace.steps.length === 0) return;
+    if (s.sim.computing) return;
+    if ((!s.sim.trace && !s.sim.pdaTrace) || s.sim.stale || s.sim.interrupted) await get().simStart();
     const cur = get().sim;
-    const atEnd = cur.cursor >= trace.steps.length - 1;
+    const len = simLength(cur);
+    if (len === 0) return;
+    const atEnd = cur.cursor >= len - 1;
     set({ sim: { ...cur, playing: true, cursor: atEnd ? 0 : cur.cursor } });
   },
   simPause() {
@@ -355,11 +411,16 @@ export const useApp = create<AppState>()((set, get) => ({
   },
   simStop() {
     const s = get();
-    if (!s.sim.trace) return;
+    if (s.sim.computing) {
+      s.sim.computing.cancel();
+      return;
+    }
+    if (!s.sim.trace && !s.sim.pdaTrace) return;
     set({ sim: { ...s.sim, playing: false, interrupted: true } });
   },
   simReset() {
-    set({ sim: { ...get().sim, trace: null, cursor: 0, playing: false, interrupted: false, stale: false } });
+    get().sim.computing?.cancel();
+    set({ sim: { ...get().sim, trace: null, pdaTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false } });
   },
   setSpeed(n) {
     set({ sim: { ...get().sim, speed: n } });
@@ -369,7 +430,7 @@ export const useApp = create<AppState>()((set, get) => ({
   },
 }));
 
-function pruneSelection(sel: { states: string[]; edges: string[] }, m: FiniteAutomaton) {
+function pruneSelection(sel: { states: string[]; edges: string[] }, m: Machine) {
   const s = new Set(m.states.map((x) => x.id));
   const e = new Set(m.edges.map((x) => x.id));
   return { states: sel.states.filter((id) => s.has(id)), edges: sel.edges.filter((id) => e.has(id)) };

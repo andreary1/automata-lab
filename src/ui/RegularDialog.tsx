@@ -3,6 +3,7 @@ import type { OpError, Operand, BinaryOp, EquivalenceOutput, MachineResult, Subs
 import { fullyParenthesized, parseRegex, RegexSyntaxError } from '../core/regular/regex';
 import type { RegularRequest } from '../core/regular/requests';
 import type { FiniteAutomaton } from '../core/fa/model';
+import { isFA, type Machine } from '../core/machine';
 import { parseAlphabetText } from '../core/fa/symbols';
 import { validate } from '../core/fa/validate';
 import { newProject } from '../core/persistence/schema';
@@ -32,9 +33,13 @@ type Result =
   | { tool: 'ops'; data: MachineResult; title: string }
   | { tool: 'equivalence'; data: EquivalenceOutput; aIsCurrent: boolean; bIsCurrent: boolean };
 
+/** Alfabeto de entrada para pré-preencher campos (AF: Σ; AP: Σ de entrada). */
+const sigmaOf = (m: Machine) => (isFA(m) ? m.alphabet : m.inputAlphabet);
+
 export function RegularDialog() {
   const st = useApp.getState();
   const project = useApp((s) => s.project);
+  const currentFA = isFA(project.machine) ? project.machine : null;
   const [tool, setTool] = useState<Tool>('nfaToDfa');
   const [maxStates, setMaxStates] = useState(5000);
   const [running, setRunning] = useState<{ cancel: () => void } | null>(null);
@@ -43,20 +48,20 @@ export function RegularDialog() {
 
   // formulário
   const [regex, setRegex] = useState('(ab ∪ a)*');
-  const [sigmaText, setSigmaText] = useState(project.machine.alphabet.join(', '));
+  const [sigmaText, setSigmaText] = useState(sigmaOf(project.machine).join(', '));
   const [inferSigma, setInferSigma] = useState(false);
   const [simplify, setSimplify] = useState(true);
   const [order, setOrder] = useState<'heuristic' | 'listed'>('heuristic');
   const [op, setOp] = useState<BinaryOp | 'star' | 'complement'>('union');
-  const [opA, setOpA] = useState<OperandChoice>({ mode: 'current' });
-  const [opB, setOpB] = useState<OperandChoice>({ mode: 'regex', src: '', sigma: project.machine.alphabet.join(', ') });
-  const [complementSigma, setComplementSigma] = useState(project.machine.alphabet.join(', '));
+  const [opA, setOpA] = useState<OperandChoice>(currentFA ? { mode: 'current' } : { mode: 'regex', src: '', sigma: sigmaOf(project.machine).join(', ') });
+  const [opB, setOpB] = useState<OperandChoice>({ mode: 'regex', src: '', sigma: sigmaOf(project.machine).join(', ') });
+  const [complementSigma, setComplementSigma] = useState(sigmaOf(project.machine).join(', '));
 
   const close = () => {
     running?.cancel();
     st.setDialog(null);
   };
-  const currentValid = useMemo(() => validate(project.machine), [project.machine]);
+  const currentValid = useMemo(() => (currentFA ? validate(currentFA) : { valid: false, issues: [], incompleteDfa: false }), [currentFA]);
   useEffect(() => {
     setResult(null);
     setError(null);
@@ -65,10 +70,14 @@ export function RegularDialog() {
   const budget = { maxStates, maxRegexLength: 200_000 };
 
   const toOperand = (c: OperandChoice): Operand | string => {
-    if (c.mode === 'current') return { kind: 'machine', machine: project.machine, label: project.name || 'projeto atual' };
+    if (c.mode === 'current') {
+      if (!currentFA) return 'o projeto atual é um autômato com pilha; estas ferramentas trabalham com autômatos finitos.';
+      return { kind: 'machine', machine: currentFA, label: project.name || 'projeto atual' };
+    }
     if (c.mode === 'project') {
       const p = projectStore.load(c.id);
       if (!p) return 'Não foi possível carregar o projeto escolhido.';
+      if (!isFA(p.machine)) return `"${p.name}" é um autômato com pilha; escolha um autômato finito.`;
       return { kind: 'machine', machine: p.machine, label: p.name };
     }
     if (!c.src.trim()) return 'Escreva a expressão regular.';
@@ -92,11 +101,14 @@ export function RegularDialog() {
     const label = project.name || 'projeto atual';
     switch (tool) {
       case 'nfaToDfa':
-        return run({ op: 'nfaToDfa', machine: project.machine, label }, (r) => ({ tool, data: r as never }));
+        if (!currentFA) return;
+        return run({ op: 'nfaToDfa', machine: currentFA, label }, (r) => ({ tool, data: r as never }));
       case 'minimize':
-        return run({ op: 'minimize', machine: project.machine, label }, (r) => ({ tool, data: r as never }));
+        if (!currentFA) return;
+        return run({ op: 'minimize', machine: currentFA, label }, (r) => ({ tool, data: r as never }));
       case 'toRegex':
-        return run({ op: 'toRegex', machine: project.machine, label, simplify, order }, (r) => ({ tool, data: r as ToRegexOutput }));
+        if (!currentFA) return;
+        return run({ op: 'toRegex', machine: currentFA, label, simplify, order }, (r) => ({ tool, data: r as ToRegexOutput }));
       case 'regexToNfa': {
         let alphabet: string[] | null = null;
         if (!inferSigma) {
@@ -168,9 +180,14 @@ export function RegularDialog() {
             {info.title} <span className="muted small">— {info.ref === 'complementar' ? 'algoritmo complementar' : `Sipser, ${info.ref}`}</span>
           </h3>
 
-          {needsCurrent && (
+          {!currentFA && (
+            <p className="callout warn">
+              O projeto atual é um <strong>autômato com pilha</strong>. Estas ferramentas trabalham com autômatos finitos e expressões regulares (linguagens regulares). Abra um AF, ou use "Outro projeto" / "Expressão regular" em Operações e Equivalência.
+            </p>
+          )}
+          {needsCurrent && currentFA && (
             <p className="muted">
-              Entrada: o projeto atual, <strong>{project.name}</strong> ({project.machine.kind === 'dfa' ? 'AFD' : 'AFN'}, {project.machine.states.length} estados, Σ = {`{${project.machine.alphabet.join(', ')}}`}).
+              Entrada: o projeto atual, <strong>{project.name}</strong> ({currentFA.kind === 'dfa' ? 'AFD' : 'AFN'}, {currentFA.states.length} estados, Σ = {`{${currentFA.alphabet.join(', ')}}`}).
               {!currentValid.valid && <span className="error-text"> A máquina tem erros de validação; corrija-os antes (veja o painel Validação).</span>}
             </p>
           )}
@@ -238,7 +255,7 @@ export function RegularDialog() {
                 <Icon name="stop" /> Cancelar
               </button>
             ) : (
-              <button className="btn primary" onClick={execute} disabled={needsCurrent && !currentValid.valid}>
+              <button className="btn primary" onClick={execute} disabled={needsCurrent && (!currentFA || !currentValid.valid)}>
                 <Icon name="play" /> Executar
               </button>
             )}
@@ -309,25 +326,25 @@ function RegexField({ id, value, onChange, sigma }: { id: string; value: string;
 
 function OperandPicker({ label, value, onChange }: { label: string; value: OperandChoice; onChange: (v: OperandChoice) => void }) {
   const project = useApp((s) => s.project);
-  const others = useMemo(() => projectStore.list().filter((p) => p.id !== project.id), [project.id]);
+  const others = useMemo(() => projectStore.list().filter((p) => p.id !== project.id && p.kind !== 'pda'), [project.id]);
   const id = `operand-${label}`;
   return (
     <fieldset className="operand">
       <legend>Operando {label}</legend>
       <div className="segmented small-seg" role="radiogroup" aria-label={`Origem do operando ${label}`}>
-        <button role="radio" aria-checked={value.mode === 'current'} onClick={() => onChange({ mode: 'current' })}>
+        <button role="radio" aria-checked={value.mode === 'current'} disabled={!isFA(project.machine)} onClick={() => onChange({ mode: 'current' })}>
           Projeto atual
         </button>
         <button role="radio" aria-checked={value.mode === 'project'} disabled={others.length === 0} onClick={() => others[0] && onChange({ mode: 'project', id: others[0].id })}>
           Outro projeto
         </button>
-        <button role="radio" aria-checked={value.mode === 'regex'} onClick={() => onChange({ mode: 'regex', src: '', sigma: project.machine.alphabet.join(', ') })}>
+        <button role="radio" aria-checked={value.mode === 'regex'} onClick={() => onChange({ mode: 'regex', src: '', sigma: sigmaOf(project.machine).join(', ') })}>
           Expressão regular
         </button>
       </div>
       {value.mode === 'current' && (
         <p className="muted small">
-          {project.name} ({project.machine.kind === 'dfa' ? 'AFD' : 'AFN'}, Σ = {`{${project.machine.alphabet.join(', ')}}`})
+          {project.name} ({{ dfa: 'AFD', nfa: 'AFN', pda: 'AP — não aceito aqui' }[project.machine.kind]}, Σ = {`{${sigmaOf(project.machine).join(', ')}}`})
         </p>
       )}
       {value.mode === 'project' && (

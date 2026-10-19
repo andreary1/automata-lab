@@ -4,8 +4,9 @@ Laboratório interativo para criar, editar, simular e estudar autômatos, com ba
 **Sipser, *Introdução à Teoria da Computação*** (trad. bras.). Interface em português do Brasil.
 Funciona inteiramente no navegador: sem login, sem backend, sem IA nos algoritmos.
 
-**Estado atual: Etapas 1 e 2 concluídas** (editor + AFD/AFN com ε + simulação + persistência;
-AFN → AFD, minimização, ER ↔ AF, operações regulares e equivalência com contraexemplo).
+**Estado atual: Etapas 1, 2 e 3 concluídas** (editor + AFD/AFN com ε + simulação + persistência;
+AFN → AFD, minimização, ER ↔ AF, operações regulares e equivalência com contraexemplo;
+autômatos com pilha com simulação não determinística em largura).
 Veja [`docs/PROGRESSO.md`](docs/PROGRESSO.md) para o que existe e o que vem a seguir, e
 [`docs/DECISOES.md`](docs/DECISOES.md) para as convenções teóricas e técnicas.
 
@@ -38,11 +39,14 @@ src/
     fa/layout.ts        organização automática (algoritmo complementar)
     regular/            Etapa 2: subconjuntos, minimização, ER (parser próprio), ER → AFN,
                         AF → ER (AFNG), operações, equivalência; limites e cancelamento
+    pda/                Etapa 3: modelo de AP, validação, simulação em largura, lote, exemplos
+    graph.ts            interface comum de modelos desenhados como grafo
+    machine.ts          tipo Machine (AF | AP) e despacho por tipo
     persistence/        esquema JSON versionado, validação de importação, localStorage
     examples.ts         exemplos didáticos (alguns reproduzem máquinas do livro)
   state/                estado da aplicação (Zustand), desfazer/refazer, salvamento automático,
                         execução do lote em Web Worker
-  workers/              Web Workers do teste em lote e dos algoritmos da Etapa 2
+  workers/              Web Workers do lote, dos algoritmos da Etapa 2 e da simulação de AP
   ui/                   componentes React: canvas SVG, painéis, diálogos, exportação
 ```
 
@@ -55,6 +59,9 @@ src/
 - Painel inferior: simulação passo a passo (com histórico de configurações) e teste em lote.
 - "Linguagens regulares" (barra superior): AFN → AFD, minimizar, ER → AFN, AF → ER, operações e
   equivalência. Os resultados abrem como projetos novos. Sintaxe de ER em `docs/DECISOES.md`.
+- AP: em "Projetos → Novo AP" ou nos exemplos. Clique numa seta para editar as transições por
+  campos (lê, desempilha, empilha). A simulação mostra o caminho de aceitação com a pilha ou todos
+  os ramos da busca em largura.
 - Ctrl+Z / Ctrl+Shift+Z desfazem/refazem; Delete exclui; F ajusta à tela; `?` abre a ajuda.
 
 O salvamento é **local** (localStorage deste navegador). Não é sincronização em nuvem; exporte em

@@ -1,4 +1,7 @@
 import { EXAMPLES } from '../core/examples';
+import { KIND_LABEL, type Machine } from '../core/machine';
+import { PDA_EXAMPLES } from '../core/pda/examples';
+import type { BatchCase } from '../core/fa/batch';
 import { autoLayout } from '../core/fa/layout';
 import { moveStates } from '../core/fa/edit';
 import { newProject } from '../core/persistence/schema';
@@ -70,32 +73,52 @@ export function LeftPanel() {
             <Icon name="book" /> Exemplos
           </h3>
           <p className="muted small">Abrir um exemplo cria um novo projeto; o atual continua salvo.</p>
-          <ul className="examples">
-            {EXAMPLES.map((e) => (
-              <li key={e.key}>
-                <button
-                  className="example"
-                  onClick={() => {
-                    const p = newProject(e.title, structuredClone(e.machine), {
-                      description: `${e.language}. ${e.description}${e.source ? ` Fonte: ${e.source}.` : ''}`,
-                      tests: structuredClone(e.tests),
-                    });
-                    st.openProject(p);
-                    st.togglePanel('left', window.innerWidth > 900);
-                    st.showToast(`Exemplo "${e.title}" aberto como novo projeto.`);
-                  }}
-                >
-                  <span className="ex-title">
-                    {e.title} <span className={`kind-badge ${e.machine.kind}`}>{e.machine.kind === 'dfa' ? 'AFD' : 'AFN'}</span>
-                  </span>
-                  <span className="ex-lang mono">{e.language}</span>
-                  {e.source && <span className="ex-src">📖 {e.source}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <h4 className="ex-group">Autômatos finitos</h4>
+          <ExampleList items={EXAMPLES} />
+          <h4 className="ex-group">Autômatos com pilha</h4>
+          <ExampleList items={PDA_EXAMPLES} />
         </section>
       </div>
     </aside>
+  );
+}
+
+interface ExampleItem {
+  key: string;
+  title: string;
+  language: string;
+  description: string;
+  source?: string;
+  machine: Machine;
+  tests: BatchCase[];
+}
+
+function ExampleList({ items }: { items: ExampleItem[] }) {
+  const st = useApp.getState();
+  return (
+    <ul className="examples">
+      {items.map((e) => (
+        <li key={e.key}>
+          <button
+            className="example"
+            onClick={() => {
+              const p = newProject(e.title, structuredClone(e.machine), {
+                description: `${e.language}. ${e.description}${e.source ? ` Fonte: ${e.source}.` : ''}`,
+                tests: structuredClone(e.tests),
+              });
+              st.openProject(p);
+              st.togglePanel('left', window.innerWidth > 900);
+              st.showToast(`Exemplo "${e.title}" aberto como novo projeto.`);
+            }}
+          >
+            <span className="ex-title">
+              {e.title} <span className={`kind-badge ${e.machine.kind}`}>{KIND_LABEL[e.machine.kind]}</span>
+            </span>
+            <span className="ex-lang mono">{e.language}</span>
+            {e.source && <span className="ex-src">📖 {e.source}</span>}
+          </button>
+        </li>
+      ))}
+    </ul>
   );
 }
