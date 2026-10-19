@@ -12,6 +12,12 @@ type Drag =
 
 const snap = (v: number) => Math.round(v / 10) * 10;
 
+/** Fonte menor para nomes longos (ex.: subconjuntos {q1, q2, q3}); acima de 11 caracteres o nome é abreviado e aparece completo na dica. */
+function nameSize(name: string): number {
+  const n = [...name].length;
+  return n <= 3 ? 14 : n <= 5 ? 12.5 : n <= 7 ? 10.5 : 8.5;
+}
+
 export function createEdge(from: string, to: string) {
   const st = useApp.getState();
   let edgeId = '';
@@ -293,8 +299,9 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
                   {sel && <circle r={R + 7} className="halo" />}
                   <circle r={R} className="state-circle" />
                   {s.accepting && <circle r={R - 5} className="state-inner" />}
-                  <text className="state-name" dy="0.35em">
-                    {s.name.length > 7 ? s.name.slice(0, 6) + '…' : s.name}
+                  <title>{s.name}</title>
+                  <text className="state-name" dy="0.35em" style={{ fontSize: nameSize(s.name) }}>
+                    {[...s.name].length > 11 ? [...s.name].slice(0, 10).join('') + '…' : s.name}
                   </text>
                   {active && (
                     <g className="active-badge" transform={`translate(${R * 0.72} ${-R * 0.72})`}>

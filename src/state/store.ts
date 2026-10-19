@@ -100,7 +100,7 @@ export interface AppState {
   sim: SimState;
   batch: BatchState;
   toast: { text: string; kind: 'info' | 'error' } | null;
-  dialog: null | 'projects' | 'help' | 'import' | 'examples';
+  dialog: null | 'projects' | 'help' | 'import' | 'examples' | 'regular';
   /** Pedido para focar o campo de nome (incrementa a cada pedido). */
   focusNameTick: number;
   fitTick: number;

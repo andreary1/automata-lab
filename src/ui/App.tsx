@@ -7,6 +7,7 @@ import { Canvas } from './Canvas';
 import { ConfirmDialog, HelpDialog, ImportDialog, ProjectsDialog } from './Dialogs';
 import { Icon } from './icons';
 import { LeftPanel } from './LeftPanel';
+import { RegularDialog } from './RegularDialog';
 import { RightPanel } from './RightPanel';
 import { TopBar } from './TopBar';
 
@@ -166,6 +167,7 @@ export function App() {
       {panels.bottom && <BottomPanel />}
       {dialog === 'projects' && <ProjectsDialog />}
       {dialog === 'help' && <HelpDialog />}
+      {dialog === 'regular' && <RegularDialog />}
       {importing && <ImportDialog pending={importing.projects} warnings={importing.warnings} onClose={() => setImporting(null)} />}
       <ConfirmDialog />
       {toast && (

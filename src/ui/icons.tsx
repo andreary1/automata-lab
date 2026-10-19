@@ -27,6 +27,7 @@ const P: Record<string, string> = {
   book: 'M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5',
   x: 'M6 6l12 12M18 6L6 18',
   copy: 'M8 8h11v11H8zM5 16V5h11',
+  regular: 'M3 12h4M17 12h4M7 12a5 5 0 1 0 10 0a5 5 0 1 0-10 0M12 7V3M10 5l2-2 2 2',
 };
 
 export function Icon({ name, size = 16 }: { name: keyof typeof P | string; size?: number }) {

@@ -93,6 +93,9 @@ export function TopBar({ svgRef, onImport }: { svgRef: React.RefObject<SVGSVGEle
           <Icon name="redo" />
         </button>
       </div>
+      <button className="btn" onClick={() => st.setDialog('regular')} title="AFN → AFD, minimização, expressões regulares, operações e equivalência">
+        <Icon name="regular" /> <span className="hide-sm">Linguagens regulares</span>
+      </button>
       <button className="btn" onClick={() => st.setDialog('projects')}>
         <Icon name="folder" /> <span className="hide-sm">Projetos</span>
       </button>

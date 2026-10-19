@@ -308,6 +308,51 @@ table { border-collapse: collapse; width: 100%; }
 .row-actions { white-space: nowrap; }
 .bulk textarea { width: 100%; resize: vertical; }
 
+/* ---------- linguagens regulares ---------- */
+.reg-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; min-height: 420px; }
+.reg-nav { display: flex; flex-direction: column; gap: 4px; }
+.reg-nav button { text-align: left; border: 1px solid transparent; background: none; border-radius: 7px; padding: 7px 9px; cursor: pointer; display: flex; flex-direction: column; gap: 1px; }
+.reg-nav button:hover:not(:disabled) { background: var(--surface-2); }
+.reg-nav button[aria-current='page'] { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.reg-nav button span { font-size: 12px; color: var(--ink-2); }
+.reg-nav button small { font-size: 11px; color: var(--muted); }
+.reg-nav button:disabled { opacity: 0.5; }
+.small-field { margin-top: 10px; }
+.small-field input { width: 100%; }
+.reg-main { min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.reg-main h3 { margin: 0; font-size: 16px; }
+.reg-main .field { margin-bottom: 0; }
+.regex-input { font-size: 15px; }
+.insert-row { margin-top: 2px; }
+.insert-row .btn { min-width: 30px; justify-content: center; }
+.caret-line { display: block; white-space: pre; color: var(--bad); font-size: 13px; overflow-x: auto; }
+.grow { flex: 1; }
+.field.inline.grow input { flex: 1; width: auto; }
+.operands { display: flex; flex-direction: column; gap: 10px; }
+.operand { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px 10px; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.operand legend { font-weight: 600; font-size: 12.5px; color: var(--ink-2); padding: 0 4px; }
+.small-seg button { padding: 4px 10px; font-size: 12.5px; font-weight: 500; }
+.result { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+.result .btn.primary { align-self: flex-start; }
+.notes ul { margin: 4px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-2); }
+.notes li { margin-bottom: 3px; }
+.basis { margin: 0; font-size: 12.5px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.rounds { margin: 0; padding-left: 18px; font-size: 13px; }
+.rounds li { margin-bottom: 4px; }
+.block .member + .member::before { content: ' · '; color: var(--muted); }
+.open-row { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.block { display: inline-block; border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; margin: 1px 3px 1px 0; background: var(--surface-2); }
+.regex-out { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface-2); }
+.regex-out code { display: block; font-size: 15px; word-break: break-all; margin-bottom: 6px; }
+.gnfa-steps { font-size: 13px; padding-left: 18px; }
+.gnfa-steps ul { padding-left: 16px; margin: 2px 0 6px; word-break: break-all; }
+.verdict { margin: 0; padding: 10px 12px; border-radius: 8px; font-weight: 500; }
+.verdict p { margin: 0 0 6px; }
+.verdict.ok { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.verdict.bad { background: var(--bad-soft); }
+.verdict.bad > p:first-child { color: var(--bad); font-weight: 600; }
+.cx { font-size: 15px; padding: 1px 6px; border-radius: 4px; background: var(--surface); border: 1px solid var(--line); }
+
 /* ---------- modal & toast ---------- */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(10, 12, 18, 0.45); display: grid; place-items: center; z-index: 100; padding: 16px; }
 .modal { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); width: min(560px, 100%); max-height: 88vh; display: flex; flex-direction: column; border: 1px solid var(--line); }
@@ -350,13 +395,16 @@ summary { cursor: pointer; font-weight: 600; }
   .panel.right { right: 0; }
   .mobile-only { display: inline-flex; }
   .save-status { display: none; }
-  .sim-body, .batch-grid { grid-template-columns: minmax(0, 1fr); }
+  .sim-body, .batch-grid, .reg-layout { grid-template-columns: minmax(0, 1fr); }
+  .reg-nav { flex-direction: row; flex-wrap: wrap; }
+  .reg-nav button { flex: 1 1 140px; }
+  .reg-nav button span, .reg-nav button small { display: none; }
   .brand span { display: none; }
 }
 @media (max-width: 560px) {
   .app { grid-template-rows: 52px minmax(0, 1fr) minmax(180px, 42vh); }
   .topbar { gap: 4px; padding: 0 8px; }
   .project-name { margin-left: 0; }
-  .project-name input { width: 110px; }
+  .project-name input { display: none; }
   .sim-controls .speed { width: 100%; }
 }

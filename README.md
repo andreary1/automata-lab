@@ -4,7 +4,8 @@ Laboratório interativo para criar, editar, simular e estudar autômatos, com ba
 **Sipser, *Introdução à Teoria da Computação*** (trad. bras.). Interface em português do Brasil.
 Funciona inteiramente no navegador: sem login, sem backend, sem IA nos algoritmos.
 
-**Estado atual: Etapa 1 concluída** (editor + AFD/AFN com ε + simulação + persistência).
+**Estado atual: Etapas 1 e 2 concluídas** (editor + AFD/AFN com ε + simulação + persistência;
+AFN → AFD, minimização, ER ↔ AF, operações regulares e equivalência com contraexemplo).
 Veja [`docs/PROGRESSO.md`](docs/PROGRESSO.md) para o que existe e o que vem a seguir, e
 [`docs/DECISOES.md`](docs/DECISOES.md) para as convenções teóricas e técnicas.
 
@@ -35,11 +36,13 @@ src/
     fa/edit.ts          operações puras de edição (inclui completar com poço)
     fa/table.ts         tabela de transições derivada
     fa/layout.ts        organização automática (algoritmo complementar)
+    regular/            Etapa 2: subconjuntos, minimização, ER (parser próprio), ER → AFN,
+                        AF → ER (AFNG), operações, equivalência; limites e cancelamento
     persistence/        esquema JSON versionado, validação de importação, localStorage
     examples.ts         exemplos didáticos (alguns reproduzem máquinas do livro)
   state/                estado da aplicação (Zustand), desfazer/refazer, salvamento automático,
                         execução do lote em Web Worker
-  workers/              Web Worker do teste em lote
+  workers/              Web Workers do teste em lote e dos algoritmos da Etapa 2
   ui/                   componentes React: canvas SVG, painéis, diálogos, exportação
 ```
 
@@ -50,6 +53,8 @@ src/
 - Clique numa transição para marcar os símbolos (caixas de seleção, sem sintaxe para digitar).
 - Painel direito: propriedades, validação com instruções de correção, tabela δ e definição formal.
 - Painel inferior: simulação passo a passo (com histórico de configurações) e teste em lote.
+- "Linguagens regulares" (barra superior): AFN → AFD, minimizar, ER → AFN, AF → ER, operações e
+  equivalência. Os resultados abrem como projetos novos. Sintaxe de ER em `docs/DECISOES.md`.
 - Ctrl+Z / Ctrl+Shift+Z desfazem/refazem; Delete exclui; F ajusta à tela; `?` abre a ajuda.
 
 O salvamento é **local** (localStorage deste navegador). Não é sincronização em nuvem; exporte em

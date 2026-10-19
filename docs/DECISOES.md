@@ -4,11 +4,14 @@ Três categorias, sempre separadas:
 **[Livro]** definição/resultado verificado no PDF; **[Complementar]** algoritmo que não vem do
 livro; **[App]** convenção escolhida pelo aplicativo.
 
-## Fontes consultadas no livro (Etapa 1)
+## Fontes consultadas no livro
 
 O PDF fornecido é digitalizado (sem camada de texto); as páginas foram lidas visualmente.
-**Mapa de páginas:** página do livro + 16 = página do PDF até a p. 54 do livro; o PDF tem uma
-página em branco inserida (PDF 71), então a partir da p. 55 do livro o deslocamento é +17.
+**Mapa de páginas (o deslocamento muda ao longo do PDF; sempre confira o número impresso):**
+página do livro + 16 até a p. 54; +17 da p. 55 em diante no capítulo 1 (o PDF 71 é uma página em
+branco inserida); no capítulo 4 o deslocamento observado é +14 (p. 176–177 = PDF 190–191).
+
+### Etapa 1
 
 | Assunto | Referência | Página do livro (PDF) |
 |---|---|---|
@@ -24,9 +27,24 @@ página em branco inserida (PDF 71), então a partir da p. 55 do livro o desloca
 | Definição formal de computação (AFN) | — | 55–56 (72–73) |
 | AFN → AFD e fecho E(R) | Teorema 1.39 (prova) | 56–57 (73–74) |
 
-Sumário (para as próximas etapas): Expressões regulares §1.3 (p. 65), operações regulares
-p. 44 e 60, AP §2.2 (p. 114), MT §3.1 (p. 143), decidibilidade cap. 4 (p. 173).
-Essas seções **ainda não foram lidas**; ler antes das Etapas 2–4.
+### Etapa 2
+
+| Assunto | Referência | Página do livro (PDF) |
+|---|---|---|
+| Operações regulares ∪, ∘, * | Definição 1.23 | 45 (61) |
+| União pelo produto; interseção (F = F₁ × F₂) | Teorema 1.25 e nota 3 | 46–47 (62–63) |
+| AFN → AFD em N₄ (resultado usado como teste) | Exemplo 1.41, Figuras 1.43–1.44 | 58–60 (75–77) |
+| União, concatenação e estrela por AFN | Teoremas 1.45, 1.47, 1.49 | 60–64 (77–81) |
+| Definição de expressão regular; precedência; R⁺, Σ | Definição 1.52 e p. 65–67 | 65–67 (82–84) |
+| Identidades e exemplos de linguagens | Exemplo 1.53 | 67–68 (84–85) |
+| ER → AFN (casos 1–6) | Lema 1.55 | 68–69 (85–86) |
+| (ab ∪ a)* gera 8 estados | Exemplo 1.56, Figura 1.57 | 70 (87) |
+| AFNG, formato especial, CONVERT | Definição 1.64, Lema 1.60, Afirmativa 1.65 | 72–76 (89–93) |
+| AF → ER de 2 e 3 estados | Exemplos 1.66 e 1.68, Figuras 1.67 e 1.69 | 76–78 (93–95) |
+| Vacuidade e equivalência de AFDs | Teoremas 4.4 e 4.5 | 176–177 (190–191) |
+
+Ainda não lidas: AP §2.2 (p. 114+), MT §3.1 (p. 143+). Ler antes das Etapas 3–4, conferindo
+o deslocamento de páginas.
 
 ## Autômatos finitos
 
@@ -48,16 +66,77 @@ Essas seções **ainda não foram lidas**; ler antes das Etapas 2–4.
   rejeitada), e a explicação diz isso explicitamente. Conflitos (2+ destinos) e ε em AFD são
   **erros** e bloqueiam a simulação.
 - **[App]** Mudar o tipo AFD ↔ AFN não altera estados nem transições; só as regras de validação.
-  (A conversão AFN → AFD por subconjuntos é da Etapa 2.)
+  Para converter de fato, use "Linguagens regulares → AFN → AFD".
 
 ## Símbolos e entrada
 
 - **[App]** Símbolo: texto não vazio, sem espaços e sem vírgula; ε, ∅ e `eps` são reservados.
+  Símbolos que coincidem com operadores de ER (ex.: `(`, `*`, `|`) são aceitos em Σ, mas numa ER
+  devem ser escritos entre `< >`.
 - **[App]** Se todos os símbolos de Σ têm 1 caractere, a entrada é lida caractere a caractere
   (espaços ignorados). Se algum tem vários caracteres (ex.: RESET, como ⟨RESET⟩ do Exemplo 1.13),
   a entrada **deve** ter símbolos separados por espaço. Não há divisão "gulosa".
 - **[App]** Palavra vazia: campo vazio, ou exatamente `ε`. Em lote, a linha `ε` também vale.
 - Símbolo fora de Σ → resultado **Máquina ou entrada inválida**, com a posição.
+
+## Linguagens regulares (Etapa 2)
+
+Todos os algoritmos estão em `src/core/regular/`, sem React, e rodam num Web Worker cancelável
+com limite de estados (padrão 5000). Os resultados **sempre** abrem como projeto novo.
+
+### Expressões regulares — sintaxe **[App]**, semântica **[Livro, Def. 1.52]**
+
+| Escrita | Significado |
+|---|---|
+| `a`, `0` | símbolo de Σ com um caractere |
+| `<RESET>`, `<+>` | símbolo com vários caracteres ou que coincide com um operador |
+| `ε` | a palavra vazia (linguagem {ε}) |
+| `∅` ou `{}` | a linguagem vazia |
+| `R ∪ S` ou `R \| S` | união |
+| `RS` ou `R ∘ S` | concatenação |
+| `R*` | estrela |
+| `R⁺` ou `R^+` | abreviação do livro: RR* |
+| `Σ` | abreviação do livro: (a₁ ∪ … ∪ aₖ) para o Σ informado |
+| `( R )` | agrupamento |
+
+- Precedência (p. 66): estrela > concatenação > união; todas associam à esquerda.
+- `+` sozinho é **recusado**: em alguns livros é união, no Sipser é R⁺. A mensagem explica.
+- Não há atalho `eps` para ε: se Σ tiver as letras e, p, s, ficaria ambíguo.
+- Σ é explícito (campo próprio, pré-preenchido com o do projeto) ou inferido dos símbolos usados.
+  Símbolo fora de Σ é erro com posição.
+- **Não** se usa o mecanismo de regex do JavaScript em nenhum algoritmo. (Os testes usam regex de JS
+  apenas como oráculo de amostragem, marcado como complementar.)
+
+### Conversões e operações
+
+- **[Livro]** AFN → AFD: Teorema 1.39. **[App]** só os subconjuntos **alcançáveis** a partir de
+  E({q0}) são gerados (como na Fig. 1.44); o total 2^k é informado. ∅ aparece quando alcançado e
+  torna o AFD completo. Cada estado é rotulado pelo subconjunto que representa.
+- **[Complementar]** Minimização: remoção de inalcançáveis + refinamento de partição de Moore a
+  partir de {F, Q − F}; as rodadas são exibidas. AFN é determinizado e AFD incompleto é completado
+  com poço antes (avisado). O resultado é o AFD completo mínimo (Myhill–Nerode).
+- **[Livro]** ER → AFN: Lema 1.55 literal, sem simplificações (por isso (ab ∪ a)* tem 8 estados,
+  como no Exemplo 1.56). Estados renumerados q0, q1, … em ordem de busca em largura.
+- **[Livro]** AF → ER: AFNG (Lema 1.60). **[Complementar]** aplicado também a AFN (um AFN com os dois
+  estados novos já é um AFNG no formato especial). **[App]** ordem de remoção: heurística (menor
+  entrada × saída) ou ordem dos estados; simplificações que preservam a linguagem são opcionais
+  (R ∪ ∅ = R, R ∪ R = R, ε ∪ R* = R*, Rε = εR = R, R∅ = ∅R = ∅, ∅* = ε, ε* = ε, (R*)* = R*).
+  **Toda ER produzida é verificada** convertendo-a de volta (Lema 1.55) e testando equivalência exata.
+- **[Livro]** ∪, ∘, * por AFN (Teoremas 1.45, 1.47, 1.49); ∩ pelo produto (Teorema 1.25, nota 3).
+  **[Complementar]** A − B pelo produto com F = F₁ × (Q₂ − F₂).
+- **Σ explícito.** Operações binárias usam Σ = Σ₁ ∪ Σ₂ (sugestão do livro na prova do Teorema
+  1.25). O complemento pede Σ (deve conter o alfabeto da máquina) e é relativo a Σ*.
+- **Complemento nunca inverte F de um AFN**: determiniza, completa sobre Σ (símbolos novos vão
+  ao poço) e só então troca F por Q − F. Um teste confirma que a inversão ingênua dá outra linguagem.
+- **[Livro]** Equivalência: Teorema 4.5 (diferença simétrica vazia) + Teorema 4.4 (vacuidade por
+  alcançabilidade). **[Complementar]** implementação por busca em largura no produto dos AFDs
+  completos: é exata (examina todos os pares alcançáveis) e devolve um contraexemplo de
+  comprimento **mínimo**, dizendo quem o aceita. Testes com cadeias são só complementares.
+- **[App]** Nomes gerados: estados das operações ∪/∘ recebem prefixo "A." e "B."; produto usa pares
+  "(p, q)". Ao abrir, há a opção de renomear para q0, q1, … (a correspondência vai para a descrição).
+- **[App]** Limites: estados de qualquer máquina produzida (configurável), pares do produto
+  (20 × o limite) e tamanho das ER intermediárias (200 mil caracteres). Exceder dá
+  **inconclusivo**, nunca um resultado parcial.
 
 ## Resultados
 

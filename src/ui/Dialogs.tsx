@@ -5,7 +5,7 @@ import { askConfirm, projectStore, useApp } from '../state/store';
 import { HELP } from './HelpTip';
 import { Icon } from './icons';
 
-function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
+export function Modal({ title, onClose, children, wide }: { title: string; onClose: () => void; children: React.ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -205,6 +205,8 @@ export function HelpDialog() {
             <li>Um AFN aceita se, após consumir toda a entrada, algum estado ativo pertence a F. O simulador acompanha o conjunto de estados ativos (todos os ramos) e aplica o fecho-ε no início e após cada símbolo.</li>
             <li>Resultados possíveis: Aceita, Rejeitada, Execução em andamento, Interrompida pelo usuário, Inconclusiva (limite de passos) e Máquina ou entrada inválida.</li>
             <li>Testes em lote verificam amostras; não provam que a máquina reconhece uma linguagem.</li>
+            <li>"Linguagens regulares" (barra superior) converte e combina máquinas e expressões regulares. Os resultados sempre abrem como projetos novos. A equivalência é decidida de forma exata (Teorema 4.5) e, quando as linguagens diferem, mostra o menor contraexemplo.</li>
+            <li>Expressões regulares: ∪ ou | para união, justaposição para concatenação, * para estrela, ⁺ para RR*, ε, ∅, Σ, e &lt;NOME&gt; para símbolos de vários caracteres. "+" sozinho não é aceito.</li>
           </ul>
         </section>
       </div>
