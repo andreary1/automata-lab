@@ -5,7 +5,7 @@ import { formatStateSet } from '../core/fa/model';
 import { parseAlphabetText, symbolProblem } from '../core/fa/symbols';
 import { transitionTable } from '../core/fa/table';
 import { validate, type Issue } from '../core/fa/validate';
-import { useApp } from '../state/store';
+import { askConfirm, useApp } from '../state/store';
 import { HelpTip } from './HelpTip';
 import { Icon } from './icons';
 
@@ -325,8 +325,8 @@ function MachineProps() {
                 <button
                   className="chip-x"
                   aria-label={`Remover ${a} de Σ`}
-                  onClick={() => {
-                    if (used(a) && !confirm(`"${a}" é usado em transições. Remover de Σ e de todas as transições?`)) return;
+                  onClick={async () => {
+                    if (used(a) && !(await askConfirm(`"${a}" é usado em transições. Remover de Σ e de todas as transições? (Pode ser desfeito com Ctrl+Z.)`, 'Remover'))) return;
                     apply((mm) => removeSymbolEverywhere(mm, a));
                   }}
                 >

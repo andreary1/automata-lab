@@ -4,7 +4,7 @@ import { parseProjectFile, type Project } from '../core/persistence/schema';
 import { useApp } from '../state/store';
 import { BottomPanel } from './BottomPanel';
 import { Canvas } from './Canvas';
-import { HelpDialog, ImportDialog, ProjectsDialog } from './Dialogs';
+import { ConfirmDialog, HelpDialog, ImportDialog, ProjectsDialog } from './Dialogs';
 import { Icon } from './icons';
 import { LeftPanel } from './LeftPanel';
 import { RightPanel } from './RightPanel';
@@ -59,7 +59,7 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e.target)) return;
       const st = useApp.getState();
-      if (st.dialog) return;
+      if (st.dialog || st.confirmReq) return;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -167,6 +167,7 @@ export function App() {
       {dialog === 'projects' && <ProjectsDialog />}
       {dialog === 'help' && <HelpDialog />}
       {importing && <ImportDialog pending={importing.projects} warnings={importing.warnings} onClose={() => setImporting(null)} />}
+      <ConfirmDialog />
       {toast && (
         <div className={`toast ${toast.kind}`} role={toast.kind === 'error' ? 'alert' : 'status'}>
           {toast.text}

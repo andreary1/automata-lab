@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { emptyAutomaton } from '../core/fa/model';
 import { newProject, type Project } from '../core/persistence/schema';
-import { projectStore, useApp } from '../state/store';
+import { askConfirm, projectStore, useApp } from '../state/store';
 import { HELP } from './HelpTip';
 import { Icon } from './icons';
 
@@ -99,8 +99,8 @@ export function ProjectsDialog() {
                 className="btn small danger"
                 disabled={p.id === current.id}
                 title={p.id === current.id ? 'Abra outro projeto antes de excluir este.' : undefined}
-                onClick={() => {
-                  if (!confirm(`Excluir o projeto "${p.name}" deste navegador? Esta ação não pode ser desfeita.`)) return;
+                onClick={async () => {
+                  if (!(await askConfirm(`Excluir o projeto "${p.name}" deste navegador? Esta ação não pode ser desfeita.`, 'Excluir'))) return;
                   projectStore.remove(p.id);
                   refresh();
                 }}
@@ -207,6 +207,24 @@ export function HelpDialog() {
             <li>Testes em lote verificam amostras; não provam que a máquina reconhece uma linguagem.</li>
           </ul>
         </section>
+      </div>
+    </Modal>
+  );
+}
+
+export function ConfirmDialog() {
+  const req = useApp((s) => s.confirmReq);
+  if (!req) return null;
+  return (
+    <Modal title="Confirmar" onClose={() => req.resolve(false)}>
+      <p>{req.message}</p>
+      <div className="row end">
+        <button className="btn" onClick={() => req.resolve(false)}>
+          Cancelar
+        </button>
+        <button className="btn primary" onClick={() => req.resolve(true)}>
+          {req.confirmLabel}
+        </button>
       </div>
     </Modal>
   );

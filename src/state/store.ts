@@ -104,6 +104,7 @@ export interface AppState {
   /** Pedido para focar o campo de nome (incrementa a cada pedido). */
   focusNameTick: number;
   fitTick: number;
+  confirmReq: { message: string; confirmLabel: string; resolve: (ok: boolean) => void } | null;
 
   apply(fn: (m: FiniteAutomaton) => FiniteAutomaton): void;
   beginTransient(): void;
@@ -169,6 +170,7 @@ export const useApp = create<AppState>()((set, get) => ({
   dialog: null,
   focusNameTick: 0,
   fitTick: 0,
+  confirmReq: null,
 
   apply(fn) {
     const s = get();
@@ -386,3 +388,19 @@ useApp.subscribe((s, prev) => {
     useApp.getState().setSaveStatus(r.ok ? { kind: 'saved', at: new Date().toISOString() } : { kind: 'error', message: r.error });
   }, 500);
 });
+
+/** Confirmação dentro da interface (não usa window.confirm, que pode estar bloqueado). */
+export function askConfirm(message: string, confirmLabel = 'Confirmar'): Promise<boolean> {
+  return new Promise((resolve) => {
+    useApp.setState({
+      confirmReq: {
+        message,
+        confirmLabel,
+        resolve: (ok) => {
+          useApp.setState({ confirmReq: null });
+          resolve(ok);
+        },
+      },
+    });
+  });
+}

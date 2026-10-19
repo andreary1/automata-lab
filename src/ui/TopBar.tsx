@@ -47,6 +47,15 @@ export function TopBar({ svgRef, onImport }: { svgRef: React.RefObject<SVGSVGEle
     }
   };
 
+  const copy = async (text: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      st.showToast(`${what} copiado para a área de transferência.`);
+    } catch {
+      st.showToast(`Não foi possível copiar ${what}: o navegador bloqueou a área de transferência.`, 'error');
+    }
+  };
+
   const saveText =
     saveStatus.kind === 'pending'
       ? 'Salvando…'
@@ -101,6 +110,8 @@ export function TopBar({ svgRef, onImport }: { svgRef: React.RefObject<SVGSVGEle
               ['Todos os projetos (JSON)', exportAll],
               ['Diagrama (SVG)', exportSVG],
               ['Diagrama (PNG)', exportPNG],
+              ['Copiar JSON do projeto', () => copy(serializeProjects([project]), 'JSON do projeto')],
+              ['Copiar SVG do diagrama', () => svgRef.current && copy(diagramSVGString(svgRef.current, project.machine), 'SVG do diagrama')],
             ].map(([label, fn]) => (
               <button
                 key={label as string}

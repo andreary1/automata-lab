@@ -69,8 +69,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- layout ---------- */
 .app {
   display: grid;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   grid-template-rows: 52px minmax(0, 1fr) minmax(200px, 34vh);
   grid-template-columns: 250px minmax(0, 1fr) 330px;
   grid-template-areas: 'top top top' 'left center right' 'left bottom right';
