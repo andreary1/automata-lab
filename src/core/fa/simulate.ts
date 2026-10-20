@@ -5,11 +5,12 @@ import { formatWord, tokenize } from './symbols';
 import { validate } from './validate';
 
 /** Resultados distintos usados em todo o app (inclusive nos modelos futuros). */
-export type RunStatus = 'accepted' | 'rejected' | 'running' | 'interrupted' | 'inconclusive' | 'invalid';
+export type RunStatus = 'accepted' | 'rejected' | 'loop' | 'running' | 'interrupted' | 'inconclusive' | 'invalid';
 
 export const STATUS_LABEL: Record<RunStatus, string> = {
   accepted: 'Aceita',
   rejected: 'Rejeitada',
+  loop: 'Não para (laço provado)',
   running: 'Execução em andamento',
   interrupted: 'Interrompida pelo usuário',
   inconclusive: 'Inconclusiva (limite de recursos)',

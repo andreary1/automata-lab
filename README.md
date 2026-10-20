@@ -4,9 +4,10 @@ Laboratório interativo para criar, editar, simular e estudar autômatos, com ba
 **Sipser, *Introdução à Teoria da Computação*** (trad. bras.). Interface em português do Brasil.
 Funciona inteiramente no navegador: sem login, sem backend, sem IA nos algoritmos.
 
-**Estado atual: Etapas 1, 2 e 3 concluídas** (editor + AFD/AFN com ε + simulação + persistência;
+**Estado atual: Etapas 1 a 4 concluídas** (editor + AFD/AFN com ε + simulação + persistência;
 AFN → AFD, minimização, ER ↔ AF, operações regulares e equivalência com contraexemplo;
-autômatos com pilha com simulação não determinística em largura).
+autômatos com pilha com simulação não determinística em largura; máquinas de Turing
+determinísticas de uma fita com fita, cabeçote e limite de passos).
 Veja [`docs/PROGRESSO.md`](docs/PROGRESSO.md) para o que existe e o que vem a seguir, e
 [`docs/DECISOES.md`](docs/DECISOES.md) para as convenções teóricas e técnicas.
 
@@ -40,13 +41,14 @@ src/
     regular/            Etapa 2: subconjuntos, minimização, ER (parser próprio), ER → AFN,
                         AF → ER (AFNG), operações, equivalência; limites e cancelamento
     pda/                Etapa 3: modelo de AP, validação, simulação em largura, lote, exemplos
+    tm/                 Etapa 4: modelo de MT, validação, execução com registro compacto, lote, exemplos
     graph.ts            interface comum de modelos desenhados como grafo
-    machine.ts          tipo Machine (AF | AP) e despacho por tipo
+    machine.ts          tipo Machine (AF | AP | MT) e despacho por tipo
     persistence/        esquema JSON versionado, validação de importação, localStorage
     examples.ts         exemplos didáticos (alguns reproduzem máquinas do livro)
   state/                estado da aplicação (Zustand), desfazer/refazer, salvamento automático,
                         execução do lote em Web Worker
-  workers/              Web Workers do lote, dos algoritmos da Etapa 2 e da simulação de AP
+  workers/              Web Workers do lote, dos algoritmos da Etapa 2 e das simulações de AP e MT
   ui/                   componentes React: canvas SVG, painéis, diálogos, exportação
 ```
 
@@ -62,6 +64,9 @@ src/
 - AP: em "Projetos → Novo AP" ou nos exemplos. Clique numa seta para editar as transições por
   campos (lê, desempilha, empilha). A simulação mostra o caminho de aceitação com a pilha ou todos
   os ramos da busca em largura.
+- MT: em "Projetos → Nova MT" ou nos exemplos. Defina q_aceita (e, se quiser, q_rejeita) no painel
+  do estado; clique numa seta para editar lê / escreve / move. A simulação mostra a fita com o
+  cabeçote e as configurações u q v; o limite de passos fica na aba Teste em lote.
 - Ctrl+Z / Ctrl+Shift+Z desfazem/refazem; Delete exclui; F ajusta à tela; `?` abre a ajuda.
 
 O salvamento é **local** (localStorage deste navegador). Não é sincronização em nuvem; exporte em

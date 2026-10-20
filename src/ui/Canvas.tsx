@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { addState, ensureEdge, moveStates, suggestSymbols } from '../core/fa/edit';
-import { edgeLabelLines, isEdgeEmpty, isPDA, validateMachine, type Machine } from '../core/machine';
+import { edgeLabelLines, isAcceptingState, isEdgeEmpty, isPDA, isTM, validateMachine, type Machine } from '../core/machine';
 import { ensurePDAEdge, suggestTransition } from '../core/pda/edit';
+import { ensureTMEdge, suggestTMTransition } from '../core/tm/edit';
 import type { SimState } from '../state/store';
 import { useApp } from '../state/store';
 import { diagramBounds, edgeGeometry, firstLineY, R } from './geometry';
@@ -29,7 +30,17 @@ export function createEdge(from: string, to: string) {
       edgeId = existing.id;
       return m;
     }
-    const r = isPDA(m) ? ensurePDAEdge(m, from, to, suggestTransition(m)) : ensureEdge(m, from, to, { symbols: suggestSymbols(m, from) });
+    if (isPDA(m)) {
+      const r = ensurePDAEdge(m, from, to, suggestTransition(m));
+      edgeId = r.edgeId;
+      return r.machine;
+    }
+    if (isTM(m)) {
+      const r = ensureTMEdge(m, from, to, suggestTMTransition(m, from));
+      edgeId = r.edgeId;
+      return r.machine;
+    }
+    const r = ensureEdge(m, from, to, { symbols: suggestSymbols(m, from) });
     edgeId = r.edgeId;
     return r.machine;
   });
@@ -307,8 +318,10 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
               const active = activeStates.has(s.id);
               const issue = issueStates.has(s.id);
               const initial = m.initial === s.id;
-              const cls = ['state', sel && 'selected', sel && dragging && 'lifted', active && 'active', issue && 'issue', s.accepting && 'accepting', pending === s.id && 'pending'].filter(Boolean).join(' ');
-              const label = `Estado ${s.name}${initial ? ', inicial' : ''}${s.accepting ? ', de aceitação' : ''}${active ? ', ativo na simulação' : ''}`;
+              const accepting = isAcceptingState(m, s.id);
+              const rejecting = isTM(m) && m.rejectState === s.id;
+              const cls = ['state', sel && 'selected', sel && dragging && 'lifted', active && 'active', issue && 'issue', accepting && 'accepting', rejecting && 'rejecting', pending === s.id && 'pending'].filter(Boolean).join(' ');
+              const label = `Estado ${s.name}${initial ? ', inicial' : ''}${accepting ? (isTM(m) ? ', de aceitação (q_aceita)' : ', de aceitação') : ''}${rejecting ? ', de rejeição (q_rejeita)' : ''}${active ? ', ativo na simulação' : ''}`;
               return (
                 <g
                   key={s.id}
@@ -330,7 +343,8 @@ export function Canvas({ svgRef }: { svgRef: React.RefObject<SVGSVGElement> }) {
                   {initial && <path d={`M ${-R - 42} 0 L ${-R - 2} 0`} className="initial-arrow" markerEnd="url(#arrow)" />}
                   {sel && <circle r={R + 7} className="halo" />}
                   <circle r={R} className="state-circle" />
-                  {s.accepting && <circle r={R - 5} className="state-inner" />}
+                  {accepting && <circle r={R - 5} className="state-inner" />}
+                  {rejecting && <circle r={R - 5} className="state-inner reject-ring" />}
                   <title>{s.name}</title>
                   <text className="state-name" dy="0.35em" style={{ fontSize: nameSize(s.name) }}>
                     {[...s.name].length > 11 ? [...s.name].slice(0, 10).join('') + '…' : s.name}
@@ -396,6 +410,12 @@ function highlights(m: Machine, sim: SimState): { activeCount: Map<string, numbe
     const step = sim.trace.steps[sim.cursor];
     for (const s of step?.active ?? []) activeCount.set(s, 1);
     for (const e of [...(step?.symbolEdges ?? []), ...(step?.epsilonEdges ?? [])]) usedEdges.add(e);
+  } else if (sim.tmTrace && isTM(m)) {
+    const t = sim.tmTrace;
+    if (t.status === 'invalid') return { activeCount, usedEdges };
+    const k = Math.min(sim.cursor, t.steps.length);
+    activeCount.set(k === 0 ? t.initialState : t.steps[k - 1].to, 1);
+    if (k > 0) usedEdges.add(t.steps[k - 1].edgeId);
   } else if (sim.pdaTrace) {
     const t = sim.pdaTrace;
     const ids = sim.pdaView === 'path' && t.acceptingPath ? [t.acceptingPath[sim.cursor]] : (t.levels[sim.cursor]?.configs ?? []);

@@ -1,6 +1,7 @@
 import type { FAEdge, FAState, FiniteAutomaton } from '../fa/model';
 import type { Machine } from '../machine';
 import type { PDA, PDAEdge } from '../pda/model';
+import { BLANK, type TM, type TMEdge, type TMMove } from '../tm/model';
 import type { BatchCase } from '../fa/batch';
 import { symbolProblem } from '../fa/symbols';
 import { newId } from '../ids';
@@ -11,8 +12,8 @@ import { newId } from '../ids';
  * estrutura é validada; nada é aceito "no escuro".
  */
 export const FILE_FORMAT = 'automata-lab';
-/** v1: só autômatos finitos. v2: acrescenta AP (kind "pda") e limites de configurações/pilha. */
-export const SCHEMA_VERSION = 2;
+/** v1: só autômatos finitos. v2: acrescenta AP (kind "pda") e limites de configurações/pilha. v3: acrescenta MT (kind "tm"). */
+export const SCHEMA_VERSION = 3;
 
 export interface ProjectSettings {
   /** AF: símbolos processados; AP: profundidade da busca em largura. */
@@ -118,14 +119,54 @@ function parsePDA(raw: Record<string, unknown>, where: string): PDA {
   return { kind: 'pda', inputAlphabet, stackAlphabet, states, edges, initial: (raw.initial as string | null) ?? null, acceptance: raw.acceptance, initialStack: [...(raw.initialStack as string[])] };
 }
 
+function parseTM(raw: Record<string, unknown>, where: string): TM {
+  const inputAlphabet = parseSymbols(raw.inputAlphabet, 'Σ ("inputAlphabet")', where);
+  const tapeSymbols = parseSymbols(raw.tapeSymbols, 'símbolos extras da fita ("tapeSymbols")', where);
+  req(!tapeSymbols.includes(BLANK), `${where}: "tapeSymbols" não deve conter o branco ${BLANK} (ele já pertence a Γ).`);
+  const states = parseStates(raw, where);
+  const ids = new Set(states.map((s) => s.id));
+  const ref = (v: unknown, label: string) => req(v === null || v === undefined || (isStr(v) && ids.has(v)), `${where}: "${label}" deve ser null ou o id de um estado existente.`);
+  ref(raw.initial, 'machine.initial');
+  ref(raw.acceptState, 'acceptState');
+  ref(raw.rejectState, 'rejectState');
+  req(Array.isArray(raw.edges), `${where}: "machine.edges" deve ser uma lista.`);
+  const pairs = new Set<string>();
+  const edges: TMEdge[] = (raw.edges as unknown[]).map((e, i) => {
+    req(isObj(e) && isStr(e.id), `${where}: seta #${i + 1} inválida.`);
+    req(isStr(e.from) && ids.has(e.from) && isStr(e.to) && ids.has(e.to), `${where}: seta #${i + 1} liga estados inexistentes.`);
+    const key = `${e.from}->${e.to}`;
+    req(!pairs.has(key), `${where}: há duas setas entre o mesmo par de estados; elas devem ser uma só, com várias transições.`);
+    pairs.add(key);
+    req(Array.isArray(e.transitions), `${where}: seta #${i + 1} sem "transitions".`);
+    const transitions = (e.transitions as unknown[]).map((t, j) => {
+      req(isObj(t) && isStr(t.id), `${where}: transição #${j + 1} da seta #${i + 1} inválida.`);
+      req(isStr(t.read) && isStr(t.write), `${where}: "read" e "write" devem ser textos (use "${BLANK}" para o branco).`);
+      req(t.move === 'L' || t.move === 'R', `${where}: "move" deve ser "L" (esquerda, E) ou "R" (direita, D).`);
+      return { id: t.id, read: t.read, write: t.write, move: t.move as TMMove };
+    });
+    return { id: e.id, from: e.from, to: e.to, transitions };
+  });
+  return {
+    kind: 'tm',
+    inputAlphabet,
+    tapeSymbols,
+    states,
+    edges,
+    initial: (raw.initial as string | null) ?? null,
+    acceptState: (raw.acceptState as string | null) ?? null,
+    rejectState: (raw.rejectState as string | null) ?? null,
+  };
+}
+
 function parseMachine(raw: unknown, where: string, warnings: string[]): Machine {
   req(isObj(raw), `${where}: "machine" deve ser um objeto.`);
   if (raw.kind === 'pda') return parsePDA(raw, where);
+  if (raw.kind === 'tm') return parseTM(raw, where);
   return parseFA(raw, where, warnings);
 }
 
 function parseFA(raw: Record<string, unknown>, where: string, warnings: string[]): FiniteAutomaton {
-  req(raw.kind === 'dfa' || raw.kind === 'nfa', `${where}: "machine.kind" deve ser "dfa", "nfa" ou "pda" (recebido ${JSON.stringify(raw.kind)}).`);
+  req(raw.kind === 'dfa' || raw.kind === 'nfa', `${where}: "machine.kind" deve ser "dfa", "nfa", "pda" ou "tm" (recebido ${JSON.stringify(raw.kind)}).`);
   req(Array.isArray(raw.alphabet) && raw.alphabet.every(isStr), `${where}: "machine.alphabet" deve ser uma lista de textos.`);
   const alphabet = raw.alphabet as string[];
   for (const s of alphabet) {
@@ -166,6 +207,7 @@ function parseFA(raw: Record<string, unknown>, where: string, warnings: string[]
 
 function migrate(raw: Record<string, unknown>): Record<string, unknown> {
   // v1 → v2: nenhuma mudança estrutural nos AFs; limites novos recebem valores padrão.
+  // v2 → v3: só acrescenta o tipo "tm"; nada a converter.
   // Ponto de extensão: quando SCHEMA_VERSION subir, converter versões antigas aqui.
   return raw;
 }

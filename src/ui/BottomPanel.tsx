@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { EXAMPLES } from '../core/examples';
 import type { BatchCase } from '../core/fa/batch';
 import { formatStateSet, type FiniteAutomaton } from '../core/fa/model';
-import { isPDA } from '../core/machine';
+import { isPDA, isTM } from '../core/machine';
 import { PDASimulationView } from './PDASimulation';
+import { TMSimulationView } from './TMSimulation';
+import { PDA_EXAMPLES } from '../core/pda/examples';
+import { TM_EXAMPLES } from '../core/tm/examples';
 import { STATUS_LABEL, type RunStatus } from '../core/fa/simulate';
 import { isMultiCharAlphabet } from '../core/fa/symbols';
 import { cancelBatch, startBatch } from '../state/batchRunner';
@@ -14,7 +17,7 @@ import { Icon } from './icons';
 export function BottomPanel() {
   const tab = useApp((s) => s.bottomTab);
   const setTab = useApp((s) => s.setBottomTab);
-  const isMachinePDA = useApp((s) => isPDA(s.project.machine));
+  const kind = useApp((s) => s.project.machine.kind);
   return (
     <section className="panel bottom" aria-label="Simulação e testes">
       <div className="tabs" role="tablist">
@@ -25,13 +28,13 @@ export function BottomPanel() {
           Teste em lote
         </button>
       </div>
-      <div className="panel-scroll">{tab === 'sim' ? isMachinePDA ? <PDASimulationView /> : <SimulationView /> : <BatchView />}</div>
+      <div className="panel-scroll">{tab === 'sim' ? kind === 'pda' ? <PDASimulationView /> : kind === 'tm' ? <TMSimulationView /> : <SimulationView /> : <BatchView />}</div>
     </section>
   );
 }
 
 export function StatusBadge({ status, extra }: { status: RunStatus; extra?: string }) {
-  const icon: Record<RunStatus, string> = { accepted: '✓', rejected: '✗', running: '…', interrupted: '■', inconclusive: '?', invalid: '⚠' };
+  const icon: Record<RunStatus, string> = { accepted: '✓', rejected: '✗', loop: '∞', running: '…', interrupted: '■', inconclusive: '?', invalid: '⚠' };
   return (
     <span className={`status status-${status}`}>
       <span aria-hidden="true">{icon[status]}</span> {STATUS_LABEL[status]}
@@ -228,7 +231,7 @@ function BatchView() {
     const mism = results.filter((r) => r.matches === false).length;
     return { acc: c('accepted'), rej: c('rejected'), other: results.length - c('accepted') - c('rejected'), mism };
   }, [results]);
-  const exampleForProject = EXAMPLES.find((e) => JSON.stringify(e.machine) === JSON.stringify(project.machine));
+  const exampleForProject = [...EXAMPLES, ...PDA_EXAMPLES, ...TM_EXAMPLES].find((e) => JSON.stringify(e.machine) === JSON.stringify(project.machine));
 
   return (
     <div className="batch">
@@ -243,7 +246,7 @@ function BatchView() {
           </button>
         )}
         <label className="field inline">
-          <span>{isPDA(project.machine) ? 'Passos (profundidade)' : 'Limite de passos por cadeia'}</span>
+          <span>{isPDA(project.machine) ? 'Passos (profundidade)' : isTM(project.machine) ? 'Limite de passos da MT' : 'Limite de passos por cadeia'}</span>
           <input type="number" min={1} max={10_000_000} value={project.settings.maxSteps} onChange={(e) => setMaxSteps(Math.max(1, Math.floor(Number(e.target.value) || 1)))} />
         </label>
         {isPDA(project.machine) && (

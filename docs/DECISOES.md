@@ -10,7 +10,7 @@ O PDF fornecido é digitalizado (sem camada de texto); as páginas foram lidas v
 **Mapa de páginas (o deslocamento muda ao longo do PDF; sempre confira o número impresso):**
 página do livro + 16 até a p. 54; +17 da p. 55 em diante no capítulo 1 (o PDF 71 é uma página em
 branco inserida); no capítulo 2 volta a ser +16 (p. 115 = PDF 131); no capítulo 4 o deslocamento
-observado é +14 (p. 176–177 = PDF 190–191).
+observado é +14 (p. 176–177 = PDF 190–191; p. 182 = PDF 196); no capítulo 3 é +15 (p. 144 = PDF 159).
 
 ### Etapa 1
 
@@ -56,7 +56,21 @@ observado é +14 (p. 176–177 = PDF 190–191).
 | AP para wwᴿ | Exemplo 2.18, Figura 2.19 | 119 (135) |
 | Abreviação (r, u) ∈ δ(q, a, s): empilhar cadeia, u₁ no topo | Prova do Lema 2.21, Figura 2.23 | 121–122 (137–138) |
 
-Ainda não lida: MT §3.1 (p. 143+). Ler antes da Etapa 4, conferindo o deslocamento de páginas.
+### Etapa 4
+
+| Assunto | Referência | Página do livro (PDF) |
+|---|---|---|
+| Ideia da MT, fita, cabeçote; M₁ para {w#w} informal | §3.1 | 144–145 (159–160) |
+| Definição de MT (7-upla); δ: Q × Γ → Q × Γ × {E, D}; ⊔ ∈ Γ, ⊔ ∉ Σ, q_aceita ≠ q_rejeita | Definição 3.3 | 146 (161) |
+| Computação: entrada à esquerda, cabeçote na primeira célula, mover à esquerda na borda mantém o cabeçote; para em q_aceita/q_rejeita, senão roda para sempre | — | 146 (161) |
+| Configurações u q v; "ua qi ≡ ua qi ⊔"; aceitar, rejeitar, entrar em laço | — | 147–148 (162–163) |
+| Turing-reconhecível e decidível (decisor) | Definições 3.5 e 3.6 | 148 (163) |
+| M₂ para {0^(2ⁿ)}; sequência de configurações em 0000 | Exemplo 3.7, Figura 3.8 | 149–151 (164–166) |
+| Rótulos "0→D" (não escreve) e "0→⊔,D"; transições omitidas vão para q_rejeita | — | 152 (167) |
+| M₁ para {w#w} formal; aceita 011000#011000 | Exemplo 3.9, Figura 3.10 | 152–153 (167–168) |
+| A_MT é indecidível; U reconhece A_MT mas entra em laço se M entra | Teorema 4.11 e p. 183 | 182–183 (196–197) |
+
+Não implementados (extensões futuras): MT multifita (§3.2) e não determinística.
 
 ## Autômatos finitos
 
@@ -189,6 +203,59 @@ Núcleo em `src/core/pda/`, sem React. Simulação em Web Worker cancelável.
 - **[App]** As ferramentas de Linguagens regulares só aceitam autômatos finitos; com um AP aberto,
   o painel explica isso e permite usar outros projetos ou ERs.
 
+## Máquinas de Turing (Etapa 4)
+
+Núcleo em `src/core/tm/`, sem React. Execução em Web Worker cancelável.
+
+- **[Livro]** MT = (Q, Σ, Γ, δ, q0, q_aceita, q_rejeita), δ: Q × Γ → Q × Γ × {E, D}, determinística,
+  uma fita (Def. 3.3). Só movimentos E e D (não há "ficar parado").
+- **[App] Γ derivado:** o usuário edita Σ e os **símbolos extras da fita**; Γ = Σ ∪ extras ∪ {⊔}.
+  Assim Σ ⊆ Γ e ⊔ ∈ Γ valem por construção, e ⊔ em Σ é recusado (erro de validação e no editor).
+- **[Livro] Fita:** a entrada ocupa as células mais à esquerda; o cabeçote começa na primeira célula;
+  mover à esquerda na primeira célula **mantém o cabeçote no lugar** (p. 146). A fita é infinita só à
+  direita: o app cria células com ⊔ conforme o cabeçote avança (fita dinâmica), sem limite próprio
+  além do limite de passos.
+- **[Livro] Parada:** a máquina para assim que entra em q_aceita ou q_rejeita. **Transições ausentes
+  vão para q_rejeita** (convenção da p. 152), por isso δ incompleta não é erro: a validação dá uma
+  informação, e o resultado explica "δ(q, a) indefinida → q_rejeita".
+- **[App]** q_rejeita pode ser **desenhado** (um estado com esse papel, como na Fig. 3.8) ou ficar
+  **implícito** (como na Fig. 3.10). q_aceita é obrigatório. Estados de parada não podem ter
+  transições de saída (erro), e q_aceita ≠ q_rejeita (erro). Mais de uma transição para o mesmo
+  (estado, símbolo) é erro de determinismo.
+- **[App] Rótulos** no estilo do livro: "a→b,D"; se escreve o mesmo símbolo lido, "a→D"; transições de
+  uma seta que só movem na mesma direção são agrupadas ("0,x→E"). Na definição formal, as transições
+  implícitas aparecem como (q_rejeita, a, D) só para δ ficar total (símbolo e movimento não importam).
+- **[Livro] Configurações** exibidas como u q v (p. 147–148), omitindo brancos à direita do último
+  símbolo não branco; com o cabeçote além do fim, v = ⊔. A sequência de 0000 em M₂ é testada
+  exatamente contra a p. 151 (módulo espaços e brancos finais).
+- **Resultados:** aceita (entrou em q_aceita); rejeitada (entrou em q_rejeita ou faltou transição);
+  **não para (laço provado)** quando uma configuração completa (estado, cabeçote, fita sem brancos
+  finais) se repete — para uma máquina determinística isso é prova de que ela repetirá o ciclo para
+  sempre; **inconclusiva** quando o limite de passos acaba. Inconclusiva nunca é tratada como
+  rejeição nem como laço, e a mensagem cita o Teorema 4.11: o app **não** decide parada nem
+  equivalência de MTs. A detecção de repetição é **[Complementar]** e só cobre esse caso (fitas até
+  2 000 células, com orçamento de memória); laços que gastam fita nova (ex.: andar para a direita
+  para sempre) dão inconclusiva.
+- **[App] Registro compacto:** a execução guarda, por passo, a transição usada e a célula escrita; a
+  configuração k é reconstruída a partir da fita inicial. São guardados os primeiros 200 000 passos
+  para navegação; a execução continua além disso até o limite, e a interface avisa.
+- **[App] Lote:** "esperado" refere-se a L(M) = cadeias aceitas; "não para (laço provado)" confere com
+  esperado = rejeitada (não pertence a L(M)); inconclusiva não confere nem diverge.
+- **[App] Interface:** fita com janela centrada no cabeçote, marca ▼ com o nome do estado, número da
+  célula, borda pontilhada na célula escrita no último passo e brancos em cinza (nunca só cor);
+  barra para ir a qualquer configuração, histórico u q v em janela de ±60 configurações; no diagrama,
+  estado atual e transição usada destacados; q_aceita com círculo duplo e q_rejeita com anel interno
+  tracejado.
+- Exemplos: M₂ (Ex. 3.7) e M₁ (Ex. 3.9) do livro; do app: inverter bits (transdutor), "procura um 1"
+  (reconhecedor que não é decisor: Def. 3.5 × 3.6) e "vai e volta" (laço provado).
+
+## Organização automática
+
+- **[Complementar]** Camadas por BFS + baricentro e, desde a Etapa 4, um pós-processamento que empurra
+  na vertical estados que ficariam sobre (ou rentes a) uma seta alheia ou cujo rótulo de laço
+  encostaria numa seta alheia (cadeias colineares como q0 → q1 → q2 com q2 → q0). Testado em todos
+  os exemplos.
+
 ## Movimento e materiais (princípios de interface da Apple)
 
 Aplicados a partir das palestras da WWDC ("Designing Fluid Interfaces", "The Details of UI
@@ -220,7 +287,7 @@ Typography"), traduzidas para a web. Código em `src/ui/camera.ts` e no fim de `
 
 ## Resultados
 
-Aceita · Rejeitada · Execução em andamento · Interrompida pelo usuário · Inconclusiva (limite de
+Aceita · Rejeitada · Não para (laço provado, só MT) · Execução em andamento · Interrompida pelo usuário · Inconclusiva (limite de
 recursos) · Máquina ou entrada inválida. Atingir o limite de passos produz **inconclusiva**,
 nunca rejeição. Lote cancelado marca as cadeias restantes como interrompidas.
 
@@ -233,19 +300,19 @@ nunca rejeição. Lote cancelado marca as cadeias restantes como interrompidas.
 - Lote executa em Web Worker (embutido no bundle); cancelar = `terminate()`. Se o navegador não
   permitir workers, roda na thread principal em fatias, também cancelável.
 - Persistência: `localStorage`, uma chave por projeto + índice; JSON com `format` e
-  `schemaVersion` (2 desde a Etapa 3; arquivos v1 continuam sendo aceitos), validação estrutural
+  `schemaVersion` (3 desde a Etapa 4, que acrescenta `kind: "tm"`; arquivos v1 e v2 continuam sendo aceitos), validação estrutural
   completa na importação; importar sempre cria projetos novos. Versões antigas do app recusam
-  arquivos v2 com mensagem clara em vez de lê-los errado.
+  arquivos mais novos com mensagem clara em vez de lê-los errado.
 - Modelos desenhados como grafo compartilham `GraphMachine` (`src/core/graph.ts`); edição, layout e
-  geometria são genéricos. `src/core/machine.ts` reúne o tipo `Machine` (AF | AP) e o despacho
+  geometria são genéricos. `src/core/machine.ts` reúne o tipo `Machine` (AF | AP | MT) e o despacho
   (validação, rótulos, alfabeto de entrada).
 - Exportação SVG/PNG serializa o mesmo SVG do canvas (sem segunda implementação de desenho).
 
 ## Pontos de extensão previstos
 
-- `RunStatus` e `STATUS_LABEL` cobrem os seis resultados, usados por AF e AP; a MT usará os mesmos.
-- Para a MT: acrescentar `'tm'` ao tipo `Machine`, um `parseTM` em `schema.ts` (subindo
-  `SCHEMA_VERSION`), rótulos em `edgeLabelLines`, painéis próprios (como `PDAPanels.tsx`) e uma vista
-  de fita (como `PDASimulation.tsx`).
-- Extensões futuras previstas no prompt: GLC ↔ AP (Lema 2.21 já está lido), MT multifita e não
-  determinística.
+- `RunStatus` e `STATUS_LABEL` cobrem os resultados de todos os modelos (`loop` só ocorre na MT).
+- Novo modelo: acrescentar ao tipo `Machine`, um `parseX` em `schema.ts` (subindo
+  `SCHEMA_VERSION`), rótulos em `edgeLabelLines`, painéis próprios e uma vista de simulação (veja
+  `TMPanels.tsx` / `TMSimulation.tsx`).
+- Extensões futuras previstas no prompt: GLC ↔ AP (Lema 2.21 já está lido), MT multifita (§3.2) e
+  não determinística, que poderiam reaproveitar `TMStep`/`configAt` com uma fita por índice.

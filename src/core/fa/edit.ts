@@ -28,12 +28,16 @@ export function moveStates<M extends GraphMachine>(m: M, moves: Map<string, { x:
 }
 
 export function deleteStates<M extends GraphMachine>(m: M, ids: Set<string>): M {
-  return {
+  const out: M = {
     ...m,
     states: m.states.filter((s) => !ids.has(s.id)),
     edges: m.edges.filter((e) => !ids.has(e.from) && !ids.has(e.to)),
     initial: m.initial && ids.has(m.initial) ? null : m.initial,
   };
+  // MT: papéis de parada apontam para estados (q_aceita / q_rejeita)
+  const roles = out as unknown as Record<string, unknown>;
+  for (const k of ['acceptState', 'rejectState']) if (typeof roles[k] === 'string' && ids.has(roles[k] as string)) roles[k] = null;
+  return out;
 }
 
 export function findEdge(m: FiniteAutomaton, from: string, to: string): FAEdge | undefined {

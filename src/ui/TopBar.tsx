@@ -94,17 +94,17 @@ export function TopBar({ svgRef, onImport }: { svgRef: React.RefObject<SVGSVGEle
           <Icon name="redo" />
         </button>
       </div>
-      <button className="btn" onClick={() => st.setDialog('regular')} title="AFN → AFD, minimização, expressões regulares, operações e equivalência">
+      <button className="btn" onClick={() => st.setDialog('regular')} aria-label="Linguagens regulares" title="AFN → AFD, minimização, expressões regulares, operações e equivalência">
         <Icon name="regular" /> <span className="hide-sm">Linguagens regulares</span>
       </button>
-      <button className="btn" onClick={() => st.setDialog('projects')}>
+      <button className="btn" onClick={() => st.setDialog('projects')} aria-label="Projetos" title="Projetos">
         <Icon name="folder" /> <span className="hide-sm">Projetos</span>
       </button>
-      <button className="btn" onClick={onImport}>
+      <button className="btn" onClick={onImport} aria-label="Importar" title="Importar JSON">
         <Icon name="upload" /> <span className="hide-sm">Importar</span>
       </button>
       <div className="menu-wrap" ref={menuRef}>
-        <button className="btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+        <button className="btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} aria-label="Exportar" title="Exportar">
           <Icon name="download" /> <span className="hide-sm">Exportar</span>
         </button>
         {menu && (

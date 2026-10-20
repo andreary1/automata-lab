@@ -22,7 +22,11 @@ export type IssueCode =
   | 'no-accepting'
   | 'duplicate-transition'
   | 'pda-multi-push'
-  | 'pda-empty-mode';
+  | 'pda-empty-mode'
+  | 'tm-no-accept'
+  | 'tm-halting-initial'
+  | 'tm-halting-out'
+  | 'tm-implicit-reject';
 
 export interface Issue {
   severity: Severity;

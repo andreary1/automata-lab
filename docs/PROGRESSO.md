@@ -117,8 +117,54 @@
   pressionar, `backdrop-filter` ativo; com "reduzir movimento", tudo instantâneo. Roteiros das
   Etapas 1–3 continuam passando; 99 testes; sem erros de console.
 
+## Etapa 4 — Máquinas de Turing ✅ (19/10/2026)
+
+### Funcionando (verificado)
+- Novo tipo de projeto **MT** (Projetos → Nova MT, ou exemplos): determinística, uma fita
+  (Def. 3.3). Σ e símbolos extras da fita editáveis; Γ = Σ ∪ extras ∪ {⊔} calculado; papel de cada
+  estado (comum, q_aceita, q_rejeita) no painel do estado; q_rejeita desenhado ou implícito.
+- Editor de transições por campos (lê, escreve, move E/D), várias por seta, aviso imediato de
+  conflito de determinismo; rótulos no estilo do livro ("0→x,D", "0,x→E").
+- Validação: q0 e q_aceita obrigatórios, q_aceita ≠ q_rejeita, sem saídas de estados de parada,
+  ⊔ fora de Σ, símbolos fora de Γ, determinismo; transições ausentes são informação (p. 152).
+- Tabela δ (estado × símbolo, "—" = q_rejeita) e definição formal (7-upla).
+- Execução em Web Worker com limite de passos e botão de interromper; depois, navegação livre
+  (avançar, voltar, execução automática, barra, início/fim) pela fita com cabeçote, estado e célula
+  escrita, configuração u q v, explicação do passo e histórico.
+- Resultados distintos: aceita, rejeitada (estado de rejeição ou transição ausente), **não para
+  (laço provado)** por configuração repetida, **inconclusiva** por limite (nunca rejeição; cita o
+  Teorema 4.11 e não promete decidir parada).
+- Teste em lote para MT. Exemplos: M₂ (Ex. 3.7) e M₁ (Ex. 3.9) do livro, inverter bits, procura
+  um 1 (reconhecedor), vai e volta (laço).
+- Esquema JSON v3 (MT), compatível com v1/v2.
+- "Organizar" não deixa estados sobre setas alheias nem rótulos de laço encostados nelas
+  (cadeias colineares).
+- Ajustes gerais: no celular a barra superior não ultrapassa a largura da tela, e os botões que
+  viram só ícone têm nome acessível.
+
+### Verificações executadas
+- `npm test`: 127 testes (99 anteriores + 28 novos). Destaques: sequência de configurações de M₂ em
+  0000 idêntica à da p. 151; M₂ decide {0^(2ⁿ)} até n = 20; M₁ decide {w#w} em todas as cadeias sobre
+  {0,1,#} até tamanho 7 (amostragem complementar); borda esquerda; fita dinâmica; ε; limite →
+  inconclusiva; laço provado com configurações iguais; cancelamento; registro limitado; lote;
+  validação; ida e volta JSON v3; layout sem estado sobre seta (teste de mutação: removendo o
+  pós-processamento, o teste falha).
+- `npm run build`: sem erros de tipo.
+- Navegador (Playwright/Chromium): exemplos do livro, passo a passo com fita e destaques,
+  execução automática, transição ausente, tabela e definição formal, inconclusiva, laço com
+  "ver configuração", interromper execução longa, aviso de registro limitado, lote, MT do zero
+  (papéis, edição por campos, conflito, ⊔ em Σ recusado), exportar/importar/recarregar, aviso no
+  painel de linguagens regulares, Organizar, tema escuro e celular sem rolagem horizontal. Roteiros
+  das Etapas 1–3 e de movimento continuam passando; sem erros de console.
+
+### Limitações conhecidas
+- Só MT determinística de uma fita; multifita e não determinística são extensões futuras.
+- A detecção de laço só cobre configurações que se repetem exatamente; os demais laços terminam
+  em "inconclusiva" ao atingir o limite (correto, mas sem diagnóstico).
+- A velocidade da execução automática vai até 10 passos/s; para execuções longas use a barra ou
+  "Fim".
+- Sem conversão entre MT e outros modelos, nem descrição de alto nível.
+
 ## Próximas etapas
-1. **Etapa 4 — Máquinas de Turing**: ler §3.1 (Def. 3.3, configurações, exemplos 3.7–3.12),
-   conferindo o deslocamento de páginas. MT determinística de uma fita, fita dinâmica, estados de
-   aceitação e rejeição separados, convenção de fronteira da fita do livro, limite de passos
-   (inconclusivo ≠ rejeição), sem prometer decidir parada/equivalência.
+As quatro etapas do prompt estão concluídas. Extensões previstas: GLC ↔ AP (Lema 2.21), MT
+multifita (§3.2) e não determinística, visualização animada das construções da Etapa 2.

@@ -29,6 +29,18 @@ export const HELP: Record<string, { title: string; body: string }> = {
     title: 'Aceitação em AP',
     body: 'Padrão do Sipser: aceita se algum ramo consegue ler TODA a entrada e estar num estado de aceitação (a pilha pode ter qualquer conteúdo). Passar por F no meio da entrada não basta. O modo "pilha vazia" é uma convenção alternativa, oferecida separadamente: aceita se algum ramo lê toda a entrada com a pilha vazia. Rejeitar exige explorar todas as configurações alcançáveis; se um limite for atingido antes, o resultado é inconclusivo.',
   },
+  tmTape: {
+    title: 'Fita e cabeçote da MT',
+    body: 'Convenção do Sipser (p. 146): a entrada ocupa as células mais à esquerda; o resto da fita (infinita só para a direita) contém brancos ⊔; o cabeçote começa na primeira célula. Se a máquina tentar mover para a esquerda na primeira célula, o cabeçote fica onde está. O app cria células novas à direita conforme o cabeçote avança, por isso não há limite de fita além do limite de passos.',
+  },
+  tmHalt: {
+    title: 'Parar, aceitar, rejeitar, laço',
+    body: 'A MT para assim que entra em q_aceita ou q_rejeita. Pares (estado, símbolo) sem transição levam a q_rejeita (convenção do livro, p. 152). Se nunca entrar em um deles, ela não para (laço). O app só afirma "não para" quando uma configuração inteira se repete, o que é uma prova para máquinas determinísticas. Quando o limite de passos acaba, o resultado é "inconclusiva": não existe algoritmo geral que decida se uma MT aceita uma entrada (Teorema 4.11) e o app não tenta decidir parada.',
+  },
+  tmConfig: {
+    title: 'Configuração de uma MT',
+    body: 'Escrita como u q v (p. 147–148): u é o conteúdo à esquerda do cabeçote, q o estado e v o conteúdo a partir do cabeçote (o cabeçote está sobre o primeiro símbolo de v). Brancos à direita do último símbolo não branco são omitidos; quando o cabeçote está além do fim, v = ⊔.',
+  },
   tokens: {
     title: 'Como a entrada é dividida',
     body: 'Se todos os símbolos de Σ têm um caractere, a cadeia é lida caractere a caractere (espaços são ignorados). Se algum símbolo tem vários caracteres, separe os símbolos por espaço: "1 0 RESET 2". Campo vazio (ou só "ε") = palavra vazia.',

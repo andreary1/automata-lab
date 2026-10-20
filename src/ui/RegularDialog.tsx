@@ -71,13 +71,13 @@ export function RegularDialog() {
 
   const toOperand = (c: OperandChoice): Operand | string => {
     if (c.mode === 'current') {
-      if (!currentFA) return 'o projeto atual é um autômato com pilha; estas ferramentas trabalham com autômatos finitos.';
+      if (!currentFA) return `o projeto atual é ${project.machine.kind === 'tm' ? 'uma máquina de Turing' : 'um autômato com pilha'}; estas ferramentas trabalham com autômatos finitos.`;
       return { kind: 'machine', machine: currentFA, label: project.name || 'projeto atual' };
     }
     if (c.mode === 'project') {
       const p = projectStore.load(c.id);
       if (!p) return 'Não foi possível carregar o projeto escolhido.';
-      if (!isFA(p.machine)) return `"${p.name}" é um autômato com pilha; escolha um autômato finito.`;
+      if (!isFA(p.machine)) return `"${p.name}" não é um autômato finito (é ${p.machine.kind === 'tm' ? 'uma máquina de Turing' : 'um autômato com pilha'}); escolha um autômato finito.`;
       return { kind: 'machine', machine: p.machine, label: p.name };
     }
     if (!c.src.trim()) return 'Escreva a expressão regular.';
@@ -182,7 +182,7 @@ export function RegularDialog() {
 
           {!currentFA && (
             <p className="callout warn">
-              O projeto atual é um <strong>autômato com pilha</strong>. Estas ferramentas trabalham com autômatos finitos e expressões regulares (linguagens regulares). Abra um AF, ou use "Outro projeto" / "Expressão regular" em Operações e Equivalência.
+              O projeto atual é {project.machine.kind === 'tm' ? 'uma' : 'um'} <strong>{project.machine.kind === 'tm' ? 'máquina de Turing' : 'autômato com pilha'}</strong>. Estas ferramentas trabalham com autômatos finitos e expressões regulares (linguagens regulares). Abra um AF, ou use "Outro projeto" / "Expressão regular" em Operações e Equivalência.
             </p>
           )}
           {needsCurrent && currentFA && (
@@ -326,7 +326,7 @@ function RegexField({ id, value, onChange, sigma }: { id: string; value: string;
 
 function OperandPicker({ label, value, onChange }: { label: string; value: OperandChoice; onChange: (v: OperandChoice) => void }) {
   const project = useApp((s) => s.project);
-  const others = useMemo(() => projectStore.list().filter((p) => p.id !== project.id && p.kind !== 'pda'), [project.id]);
+  const others = useMemo(() => projectStore.list().filter((p) => p.id !== project.id && (p.kind === 'dfa' || p.kind === 'nfa')), [project.id]);
   const id = `operand-${label}`;
   return (
     <fieldset className="operand">
@@ -344,7 +344,7 @@ function OperandPicker({ label, value, onChange }: { label: string; value: Opera
       </div>
       {value.mode === 'current' && (
         <p className="muted small">
-          {project.name} ({{ dfa: 'AFD', nfa: 'AFN', pda: 'AP — não aceito aqui' }[project.machine.kind]}, Σ = {`{${sigmaOf(project.machine).join(', ')}}`})
+          {project.name} ({{ dfa: 'AFD', nfa: 'AFN', pda: 'AP — não aceito aqui', tm: 'MT — não aceita aqui' }[project.machine.kind]}, Σ = {`{${sigmaOf(project.machine).join(', ')}}`})
         </p>
       )}
       {value.mode === 'project' && (

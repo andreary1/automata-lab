@@ -1,3 +1,6 @@
+import { TM_EXAMPLES } from '../tm/examples';
+import type { TM } from '../tm/model';
+import { simulateTM } from '../tm/simulate';
 import { describe, expect, it } from 'vitest';
 import { EXAMPLES } from '../examples';
 import { simulateFA } from '../fa/simulate';
@@ -58,7 +61,7 @@ describe('autômatos com pilha (esquema v2)', () => {
   it('ida e volta preserva Σ, Γ, transições, pilha inicial, modo de aceitação e limites', () => {
     const projects = PDA_EXAMPLES.map((e) => newProject(e.title, e.machine, { tests: e.tests, settings: { maxSteps: 77, maxConfigs: 999, maxStack: 42 } }));
     const text = serializeProjects(projects);
-    expect(JSON.parse(text).schemaVersion).toBe(2);
+    expect(JSON.parse(text).schemaVersion).toBe(3);
     const parsed = parseProjectFile(text);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
@@ -83,6 +86,32 @@ describe('autômatos com pilha (esquema v2)', () => {
     expect(parseProjectFile(JSON.stringify(bad))).toMatchObject({ ok: false, errors: [expect.stringContaining('push')] });
     const bad2 = JSON.parse(serializeProjects([newProject('x', PDA_EXAMPLES[0].machine)]));
     bad2.projects[0].machine.acceptance = 'talvez';
+    expect(parseProjectFile(JSON.stringify(bad2)).ok).toBe(false);
+  });
+});
+
+describe('máquinas de Turing (esquema v3)', () => {
+  it('ida e volta preserva Σ, extras de Γ, transições e estados de parada', () => {
+    const projects = TM_EXAMPLES.map((e) => newProject(e.title, e.machine, { tests: e.tests }));
+    const parsed = parseProjectFile(serializeProjects(projects));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    parsed.projects.forEach((p, i) => {
+      expect(p.machine).toEqual(projects[i].machine);
+      for (const t of projects[i].tests) expect(simulateTM(p.machine as TM, t.input, { maxSteps: 500 }).status).toBe(simulateTM(projects[i].machine as TM, t.input, { maxSteps: 500 }).status);
+    });
+  });
+  it('arquivos v2 continuam sendo importados', () => {
+    const v2 = JSON.parse(serializeProjects([newProject('ap', PDA_EXAMPLES[0].machine)]));
+    v2.schemaVersion = 2;
+    expect(parseProjectFile(JSON.stringify(v2)).ok).toBe(true);
+  });
+  it('MT malformada é recusada com mensagem', () => {
+    const bad = JSON.parse(serializeProjects([newProject('x', TM_EXAMPLES[0].machine)]));
+    bad.projects[0].machine.edges[0].transitions[0].move = 'S';
+    expect(parseProjectFile(JSON.stringify(bad))).toMatchObject({ ok: false, errors: [expect.stringContaining('move')] });
+    const bad2 = JSON.parse(serializeProjects([newProject('x', TM_EXAMPLES[0].machine)]));
+    bad2.projects[0].machine.acceptState = 'nao-existe';
     expect(parseProjectFile(JSON.stringify(bad2)).ok).toBe(false);
   });
 });

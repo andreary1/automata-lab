@@ -12,20 +12,22 @@ import { Icon } from './icons';
 const usePDA = () => useApp((s) => s.project.machine) as PDA;
 
 // ---------------------------------------------------------------- alfabetos
-function SymbolSetEditor({ label, symbols, onAdd, onRemove, onRename, uses, help }: { label: string; symbols: string[]; onAdd: (s: string[]) => void; onRemove: (s: string) => void; onRename: (a: string, b: string) => void; uses: (s: string) => number; help: string }) {
+export function SymbolSetEditor({ label, symbols, onAdd, onRemove, onRename, uses, help, check, id: idProp }: { label: string; symbols: string[]; onAdd: (s: string[]) => void; onRemove: (s: string) => void; onRename: (a: string, b: string) => void; uses: (s: string) => number; help: string; check?: (s: string) => string | null; id?: string }) {
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ sym: string; value: string } | null>(null);
   const add = () => {
     const { symbols: parsed, errors } = parseAlphabetText(text);
-    const fresh = parsed.filter((s) => !symbols.includes(s));
-    setErr(errors.length ? errors.join(' ') : parsed.length && !fresh.length ? `Esses símbolos já estão em ${label}.` : null);
+    const extra = check ? parsed.map(check).filter((x): x is string => !!x) : [];
+    const fresh = parsed.filter((s) => !symbols.includes(s) && !check?.(s));
+    const all = [...errors, ...extra];
+    setErr(all.length ? all.join(' ') : parsed.length && !fresh.length ? `Esses símbolos já estão em ${label}.` : null);
     if (fresh.length) {
       onAdd(fresh);
       setText('');
     }
   };
-  const id = `alpha-${label}`;
+  const id = idProp ?? `alpha-${label}`;
   return (
     <div className="field">
       <span>
@@ -45,7 +47,7 @@ function SymbolSetEditor({ label, symbols, onAdd, onRemove, onRename, uses, help
               onBlur={() => {
                 const v = editing.value.trim();
                 if (v !== a) {
-                  const p = symbolProblem(v);
+                  const p = symbolProblem(v) ?? check?.(v) ?? null;
                   if (p) setErr(p);
                   else if (symbols.includes(v)) setErr(`"${v}" já está em ${label}.`);
                   else onRename(a, v), setErr(null);

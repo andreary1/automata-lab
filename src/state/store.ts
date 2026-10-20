@@ -2,10 +2,13 @@ import { create } from 'zustand';
 import type { BatchCase, BatchResult } from '../core/fa/batch';
 import type { FiniteAutomaton } from '../core/fa/model';
 import { simulateFA, type FATrace } from '../core/fa/simulate';
-import { isFA, isPDA, type Machine } from '../core/machine';
+import { isFA, isPDA, isTM, type Machine } from '../core/machine';
 import type { PDA } from '../core/pda/model';
 import type { PDATrace } from '../core/pda/simulate';
+import type { TM } from '../core/tm/model';
+import type { TMTrace } from '../core/tm/simulate';
 import { runPDASimulation } from './pdaRunner';
+import { runTMSimulation } from './tmRunner';
 import { EXAMPLES } from '../core/examples';
 import { newProject, type Project } from '../core/persistence/schema';
 import { ProjectStore, type KV } from '../core/persistence/storage';
@@ -30,7 +33,9 @@ export interface SimState {
   pdaTrace: PDATrace | null;
   /** AP: percorrer os passos da busca ('levels') ou o caminho de aceitação ('path'). */
   pdaView: 'levels' | 'path';
-  /** AP: simulação em andamento no Web Worker. */
+  /** Traço de máquina de Turing (registro compacto; configuração k = cursor). */
+  tmTrace: TMTrace | null;
+  /** AP/MT: simulação em andamento no Web Worker. */
   computing: { cancel: () => void } | null;
   /** Índice exibido: passo do AF, nível da busca ou posição no caminho de aceitação. */
   cursor: number;
@@ -122,6 +127,8 @@ export interface AppState {
   applyFA(fn: (m: FiniteAutomaton) => FiniteAutomaton): void;
   /** Aplica só se o projeto atual for um AP. */
   applyPDA(fn: (m: PDA) => PDA): void;
+  /** Aplica só se o projeto atual for uma MT. */
+  applyTM(fn: (m: TM) => TM): void;
   beginTransient(): void;
   applyTransient(fn: (m: Machine) => Machine): void;
   endTransient(): void;
@@ -166,12 +173,15 @@ export interface AppState {
 /** Quantidade de posições navegáveis da simulação atual. */
 export function simLength(sim: SimState): number {
   if (sim.trace) return sim.trace.steps.length;
+  if (sim.tmTrace) return sim.tmTrace.status === 'invalid' ? 0 : sim.tmTrace.steps.length + 1;
   if (sim.pdaTrace) return sim.pdaView === 'path' && sim.pdaTrace.acceptingPath ? sim.pdaTrace.acceptingPath.length : sim.pdaTrace.levels.length;
   return 0;
 }
 
+export const hasTrace = (sim: SimState) => !!(sim.trace || sim.pdaTrace || sim.tmTrace);
+
 const invalidateRuns = (s: AppState) => ({
-  sim: s.sim.trace || s.sim.pdaTrace ? { ...s.sim, playing: false, stale: true } : s.sim,
+  sim: hasTrace(s.sim) ? { ...s.sim, playing: false, stale: true } : s.sim,
   batch: s.batch.results ? { ...s.batch, stale: true } : s.batch,
 });
 
@@ -189,7 +199,7 @@ export const useApp = create<AppState>()((set, get) => ({
   bottomTab: 'sim',
   panels: { left: true, right: true, bottom: true },
   saveStatus: { kind: 'saved' },
-  sim: { input: '', trace: null, pdaTrace: null, pdaView: 'levels', computing: null, cursor: 0, playing: false, speed: 2, interrupted: false, stale: false },
+  sim: { input: '', trace: null, pdaTrace: null, pdaView: 'levels', tmTrace: null, computing: null, cursor: 0, playing: false, speed: 2, interrupted: false, stale: false },
   batch: { running: false, progress: [0, 0], results: null, stale: false },
   toast: null,
   dialog: null,
@@ -213,6 +223,9 @@ export const useApp = create<AppState>()((set, get) => ({
   },
   applyPDA(fn) {
     get().apply((m) => (isPDA(m) ? fn(m) : m));
+  },
+  applyTM(fn) {
+    get().apply((m) => (isTM(m) ? fn(m) : m));
   },
   beginTransient() {
     set({ transientBase: get().project.machine });
@@ -283,7 +296,7 @@ export const useApp = create<AppState>()((set, get) => ({
       future: [],
       selection: { states: [], edges: [] },
       pendingEdgeFrom: null,
-      sim: { ...get().sim, input: '', trace: null, pdaTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false },
+      sim: { ...get().sim, input: '', trace: null, pdaTrace: null, tmTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false },
       batch: { running: false, progress: [0, 0], results: null, stale: false },
       fitTick: get().fitTick + 1,
     });
@@ -355,7 +368,7 @@ export const useApp = create<AppState>()((set, get) => ({
   setSimInput(input) {
     const sim = get().sim;
     // Mudar a entrada invalida a execução anterior (o próximo Executar/Avançar recomeça).
-    const had = sim.trace || sim.pdaTrace;
+    const had = hasTrace(sim);
     set({ sim: { ...sim, input, ...(had && input !== sim.input ? { stale: true, playing: false } : {}) } });
   },
   async simStart() {
@@ -365,7 +378,7 @@ export const useApp = create<AppState>()((set, get) => ({
     if (isPDA(m)) {
       const { maxSteps, maxConfigs, maxStack } = s.project.settings;
       const job = runPDASimulation(m, s.sim.input, { maxSteps, maxConfigs, maxStack });
-      set({ sim: { ...get().sim, trace: null, pdaTrace: null, computing: job, cursor: 0, playing: false, interrupted: false, stale: false } });
+      set({ sim: { ...get().sim, trace: null, pdaTrace: null, tmTrace: null, computing: job, cursor: 0, playing: false, interrupted: false, stale: false } });
       const out = await job.promise;
       if (get().sim.computing !== job) return; // substituída por outra execução
       if (out === 'cancelled') {
@@ -375,8 +388,20 @@ export const useApp = create<AppState>()((set, get) => ({
       set({ sim: { ...get().sim, pdaTrace: out, computing: null, pdaView: out.acceptingPath ? 'path' : 'levels', cursor: 0 } });
       return;
     }
+    if (isTM(m)) {
+      const job = runTMSimulation(m, s.sim.input, { maxSteps: s.project.settings.maxSteps });
+      set({ sim: { ...get().sim, trace: null, pdaTrace: null, tmTrace: null, computing: job, cursor: 0, playing: false, interrupted: false, stale: false } });
+      const out = await job.promise;
+      if (get().sim.computing !== job) return;
+      if (out === 'cancelled') {
+        set({ sim: { ...get().sim, computing: null, interrupted: true } });
+        return;
+      }
+      set({ sim: { ...get().sim, tmTrace: out, computing: null, cursor: 0 } });
+      return;
+    }
     const trace = simulateFA(m, s.sim.input, { maxSteps: s.project.settings.maxSteps });
-    set({ sim: { ...s.sim, trace, pdaTrace: null, cursor: 0, playing: false, interrupted: false, stale: false } });
+    set({ sim: { ...s.sim, trace, pdaTrace: null, tmTrace: null, cursor: 0, playing: false, interrupted: false, stale: false } });
   },
   setPdaView(v) {
     set({ sim: { ...get().sim, pdaView: v, cursor: 0, playing: false } });
@@ -384,7 +409,7 @@ export const useApp = create<AppState>()((set, get) => ({
   simStep(d) {
     const s = get();
     if (s.sim.computing) return;
-    if ((!s.sim.trace && !s.sim.pdaTrace) || s.sim.stale) {
+    if (!hasTrace(s.sim) || s.sim.stale) {
       void get().simStart();
       return;
     }
@@ -393,13 +418,13 @@ export const useApp = create<AppState>()((set, get) => ({
   },
   simJump(i) {
     const s = get();
-    if (!s.sim.trace && !s.sim.pdaTrace) return;
+    if (!hasTrace(s.sim)) return;
     set({ sim: { ...s.sim, cursor: Math.max(0, Math.min(simLength(s.sim) - 1, i)), playing: false } });
   },
   async simPlay() {
     const s = get();
     if (s.sim.computing) return;
-    if ((!s.sim.trace && !s.sim.pdaTrace) || s.sim.stale || s.sim.interrupted) await get().simStart();
+    if (!hasTrace(s.sim) || s.sim.stale || s.sim.interrupted) await get().simStart();
     const cur = get().sim;
     const len = simLength(cur);
     if (len === 0) return;
@@ -415,12 +440,12 @@ export const useApp = create<AppState>()((set, get) => ({
       s.sim.computing.cancel();
       return;
     }
-    if (!s.sim.trace && !s.sim.pdaTrace) return;
+    if (!hasTrace(s.sim)) return;
     set({ sim: { ...s.sim, playing: false, interrupted: true } });
   },
   simReset() {
     get().sim.computing?.cancel();
-    set({ sim: { ...get().sim, trace: null, pdaTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false } });
+    set({ sim: { ...get().sim, trace: null, pdaTrace: null, tmTrace: null, computing: null, cursor: 0, playing: false, interrupted: false, stale: false } });
   },
   setSpeed(n) {
     set({ sim: { ...get().sim, speed: n } });

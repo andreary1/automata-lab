@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { completeWithSink, deleteEdges, deleteStates, removeSymbolEverywhere, renameSymbol, updateEdge, updateState } from '../core/fa/edit';
 import type { FAKind, FiniteAutomaton } from '../core/fa/model';
-import { edgeLabelLines, isPDA, validateMachine } from '../core/machine';
+import { edgeLabelLines, isPDA, isTM, KIND_LABEL, validateMachine } from '../core/machine';
 import { PDAEdgeProps, PDAFormal, PDAMachineProps, PDATable } from './PDAPanels';
+import { TMEdgeProps, TMFormal, TMMachineProps, TMStateRole, TMTable } from './TMPanels';
 import { formatStateSet } from '../core/fa/model';
 import { parseAlphabetText, symbolProblem } from '../core/fa/symbols';
 import { transitionTable } from '../core/fa/table';
@@ -13,7 +14,7 @@ import { Icon } from './icons';
 
 export function RightPanel() {
   const tab = useApp((s) => s.rightTab);
-  const isMachinePDA = useApp((s) => s.project.machine.kind === 'pda');
+  const kind = useApp((s) => s.project.machine.kind);
   const setTab = useApp((s) => s.setRightTab);
   return (
     <aside className="panel right" aria-label="Propriedades e validação">
@@ -35,8 +36,8 @@ export function RightPanel() {
             <Validation />
           </>
         )}
-        {tab === 'table' && (isMachinePDA ? <PDATable /> : <TableView />)}
-        {tab === 'formal' && (isMachinePDA ? <PDAFormal /> : <FormalView />)}
+        {tab === 'table' && (kind === 'pda' ? <PDATable /> : kind === 'tm' ? <TMTable /> : <TableView />)}
+        {tab === 'formal' && (kind === 'pda' ? <PDAFormal /> : kind === 'tm' ? <TMFormal /> : <FormalView />)}
       </div>
     </aside>
   );
@@ -51,10 +52,10 @@ function Properties() {
   }
   if (sel.edges.length === 1 && sel.states.length === 0) {
     const e = m.edges.find((x) => x.id === sel.edges[0]);
-    if (e) return isPDA(m) ? <PDAEdgeProps id={e.id} /> : <EdgeProps id={e.id} />;
+    if (e) return isPDA(m) ? <PDAEdgeProps id={e.id} /> : isTM(m) ? <TMEdgeProps id={e.id} /> : <EdgeProps id={e.id} />;
   }
   if (sel.states.length + sel.edges.length > 1) return <MultiProps />;
-  return isPDA(m) ? <PDAMachineProps /> : <MachineProps />;
+  return isPDA(m) ? <PDAMachineProps /> : isTM(m) ? <TMMachineProps /> : <MachineProps />;
 }
 
 function MultiProps() {
@@ -128,10 +129,14 @@ function StateProps({ id }: { id: string }) {
         <input type="checkbox" checked={m.initial === id} onChange={(e) => apply((mm) => ({ ...mm, initial: e.target.checked ? id : null }))} />
         Estado inicial (q0)
       </label>
-      <label className="check">
-        <input type="checkbox" checked={st.accepting} onChange={(e) => apply((mm) => updateState(mm, id, { accepting: e.target.checked }))} />
-        Estado de aceitação (pertence a F)
-      </label>
+      {isTM(m) ? (
+        <TMStateRole id={id} />
+      ) : (
+        <label className="check">
+          <input type="checkbox" checked={st.accepting} onChange={(e) => apply((mm) => updateState(mm, id, { accepting: e.target.checked }))} />
+          Estado de aceitação (pertence a F)
+        </label>
+      )}
       <div className="mini-list">
         <h4>Saídas</h4>
         {out.length === 0 && <p className="muted">Nenhuma transição sai deste estado.</p>}
@@ -376,7 +381,7 @@ function Validation() {
       <h3>
         Validação{' '}
         <span className={`badge ${report.valid ? 'ok' : 'bad'}`}>
-          {report.valid ? (report.incompleteDfa ? '✓ válida (AFD incompleto)' : `✓ ${{ dfa: 'AFD', nfa: 'AFN', pda: 'AP' }[m.kind]} válido`) : '✗ com erros'}
+          {report.valid ? (report.incompleteDfa ? '✓ válida (AFD incompleto)' : `✓ ${KIND_LABEL[m.kind]} ${m.kind === 'tm' ? 'válida' : 'válido'}`) : '✗ com erros'}
         </span>
       </h3>
       {issues.length === 0 && <p className="muted">Nenhum problema encontrado.</p>}

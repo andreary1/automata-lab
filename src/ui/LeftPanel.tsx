@@ -1,6 +1,7 @@
 import { EXAMPLES } from '../core/examples';
 import { KIND_LABEL, type Machine } from '../core/machine';
 import { PDA_EXAMPLES } from '../core/pda/examples';
+import { TM_EXAMPLES } from '../core/tm/examples';
 import type { BatchCase } from '../core/fa/batch';
 import { autoLayout } from '../core/fa/layout';
 import { newProject } from '../core/persistence/schema';
@@ -75,6 +76,8 @@ export function LeftPanel() {
           <ExampleList items={EXAMPLES} />
           <h4 className="ex-group">Autômatos com pilha</h4>
           <ExampleList items={PDA_EXAMPLES} />
+          <h4 className="ex-group">Máquinas de Turing</h4>
+          <ExampleList items={TM_EXAMPLES} />
         </section>
       </div>
     </aside>

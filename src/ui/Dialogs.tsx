@@ -1,3 +1,4 @@
+import { emptyTM } from '../core/tm/model';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { emptyAutomaton } from '../core/fa/model';
 import { inputAlphabet, KIND_LABEL } from '../core/machine';
@@ -53,8 +54,8 @@ export function ProjectsDialog() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const create = (kind: 'dfa' | 'nfa' | 'pda') => {
-    st.openProject(kind === 'pda' ? newProject('Novo AP', emptyPDA()) : newProject(kind === 'dfa' ? 'Novo AFD' : 'Novo AFN', emptyAutomaton(kind)));
+  const create = (kind: 'dfa' | 'nfa' | 'pda' | 'tm') => {
+    st.openProject(kind === 'pda' ? newProject('Novo AP', emptyPDA()) : kind === 'tm' ? newProject('Nova MT', emptyTM()) : newProject(kind === 'dfa' ? 'Novo AFD' : 'Novo AFN', emptyAutomaton(kind)));
     close();
   };
 
@@ -72,6 +73,9 @@ export function ProjectsDialog() {
         </button>
         <button className="btn" onClick={() => create('pda')}>
           <Icon name="plus" /> Novo AP
+        </button>
+        <button className="btn" onClick={() => create('tm')}>
+          <Icon name="plus" /> Nova MT
         </button>
       </div>
       <ul className="project-list">
@@ -219,6 +223,7 @@ export function HelpDialog() {
             <li>Testes em lote verificam amostras; não provam que a máquina reconhece uma linguagem.</li>
             <li>"Linguagens regulares" (barra superior) converte e combina máquinas e expressões regulares. Os resultados sempre abrem como projetos novos. A equivalência é decidida de forma exata (Teorema 4.5) e, quando as linguagens diferem, mostra o menor contraexemplo.</li>
             <li>Autômatos com pilha seguem a Definição 2.13: a pilha começa vazia e a aceitação padrão é por estado final ao fim da entrada; "pilha vazia" é um modo separado. A pilha é escrita com o topo à esquerda; ao empilhar vários símbolos, o primeiro escrito fica no topo (Figura 2.23). A simulação explora as configurações em largura; rejeitar exige explorar todas, e um limite atingido dá resultado inconclusivo.</li>
+            <li>Máquinas de Turing seguem a Definição 3.3: uma fita infinita à direita, cabeçote começando na primeira célula (mover para a esquerda ali o mantém no lugar), movimentos E e D, q_aceita e q_rejeita distintos. Transições ausentes levam a q_rejeita (p. 152). O app só diz "não para" quando uma configuração inteira se repete; atingir o limite de passos dá resultado inconclusivo, pois parada e equivalência de MTs não são decidíveis em geral.</li>
             <li>Expressões regulares: ∪ ou | para união, justaposição para concatenação, * para estrela, ⁺ para RR*, ε, ∅, Σ, e &lt;NOME&gt; para símbolos de vários caracteres. "+" sozinho não é aceito.</li>
           </ul>
         </section>
