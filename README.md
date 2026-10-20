@@ -1,4 +1,5 @@
 # Automata Lab
+## Atenção: Esse projeto foi criado com o intuito de facilitar o conteúdo da cadeira "Aspectos Teóricos da Computação"
 
 Laboratório interativo para criar, editar, simular e estudar autômatos, com base teórica em
 **Sipser, *Introdução à Teoria da Computação*** (trad. bras.). Interface em português do Brasil.
@@ -59,15 +60,29 @@ src/
 - Clique numa transição para marcar os símbolos (caixas de seleção, sem sintaxe para digitar).
 - Painel direito: propriedades, validação com instruções de correção, tabela δ e definição formal.
 - Painel inferior: simulação passo a passo (com histórico de configurações) e teste em lote.
+## Autômatos Finitos
+<table>
+  <tr>
+    <td><img width="683" height="299" alt="image" src="https://github.com/user-attachments/assets/5b04d1aa-a72b-4e2e-ad7e-3b217cb63adc" /></td>
+    <td><img width="683" height="299" alt="image" src="https://github.com/user-attachments/assets/e3c53bc4-6a96-45df-bb41-f04dfb1c65fe" /></td>
+  </tr>
+</table> 
 - "Linguagens regulares" (barra superior): AFN → AFD, minimizar, ER → AFN, AF → ER, operações e
   equivalência. Os resultados abrem como projetos novos. Sintaxe de ER em `docs/DECISOES.md`.
+
+## Autômato com Pilha
+<img width="1366" height="597" alt="image" src="https://github.com/user-attachments/assets/b44dadcf-c26c-4dba-80af-1cce5ae1ee1d" />
 - AP: em "Projetos → Novo AP" ou nos exemplos. Clique numa seta para editar as transições por
   campos (lê, desempilha, empilha). A simulação mostra o caminho de aceitação com a pilha ou todos
   os ramos da busca em largura.
+  
+## Máquina de Turing
+<img width="1366" height="597" alt="image" src="https://github.com/user-attachments/assets/71b82093-c12d-4b82-8c47-9e1718f03566" />
+- Ctrl+Z / Ctrl+Shift+Z desfazem/refazem; Delete exclui; F ajusta à tela; `?` abre a ajuda.
 - MT: em "Projetos → Nova MT" ou nos exemplos. Defina q_aceita (e, se quiser, q_rejeita) no painel
   do estado; clique numa seta para editar lê / escreve / move. A simulação mostra a fita com o
   cabeçote e as configurações u q v; o limite de passos fica na aba Teste em lote.
-- Ctrl+Z / Ctrl+Shift+Z desfazem/refazem; Delete exclui; F ajusta à tela; `?` abre a ajuda.
 
+## Salvamento
 O salvamento é **local** (localStorage deste navegador). Não é sincronização em nuvem; exporte em
 JSON para guardar uma cópia.
